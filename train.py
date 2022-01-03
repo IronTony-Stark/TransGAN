@@ -8,7 +8,7 @@ import torchvision.utils as vutils
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import argparse
-from utils import inits_weight, gen_noise
+from utils import *
 
 from models import *
 
@@ -20,6 +20,7 @@ parser.add_argument("--lr_gen", type=float, default=0.0001, help="Learning rate 
 parser.add_argument("--lr_dis", type=float, default=0.0001, help="Learning rate for discriminator.")
 parser.add_argument("--beta1", type=int, default="0", help="beta1")
 parser.add_argument("--beta2", type=float, default="0.99", help="beta2")
+parser.add_argument('--phi', type=int, default="1", help='phi')
 parser.add_argument("--patch_size", type=int, default=4, help="Patch size for discriminator.")
 parser.add_argument("--initial_size", type=int, default=8, help="Initial size for generator.")
 parser.add_argument("--latent_dim", type=int, default=1024, help="Latent dimension of generator's input.")
@@ -57,15 +58,19 @@ optimizer_dis = optim.Adam(
     betas=(args.beta1, args.beta2)
 )
 
-train_set = torchvision.datasets.CIFAR10(root="./data", train=True, download=True, transform=transforms.Compose([
+# lr_decay_gen = LinearLrDecay(optimizer_gen, args.lr_gen, 0.0, 0, args.max_iter * args.n_critic)
+# lr_decay_dis = LinearLrDecay(optimizer_dis, args.lr_dis, 0.0, 0, args.max_iter * args.n_critic)
+
+train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download=True, transform=transforms.Compose([
     transforms.Resize(size=(args.img_size, args.img_size)),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ]))
-train_loader = DataLoader(dataset=train_set, batch_size=args.batch_size, shuffle=True)
+train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
 
-writer = SummaryWriter("./logs/")
+writer = SummaryWriter("./runs/")
+checkpoint = Checkpoint("./checkpoints/", discriminator, generator, optimizer_dis, optimizer_gen)
 
 iteration = 0
 for epoch in range(args.epoch):
@@ -77,10 +82,12 @@ for epoch in range(args.epoch):
         # Update Discriminator
         optimizer_dis.zero_grad()
 
-        real_valid = discriminator(real_imgs)
-        fake_valid = discriminator(fake_imgs.detach())
+        real_score = discriminator(real_imgs)
+        fake_score = discriminator(fake_imgs.detach())
 
-        loss_dis = -torch.mean(real_valid) + torch.mean(fake_valid)
+        gradient_penalty = compute_gradient_penalty(discriminator, real_imgs, fake_imgs.detach(), args.phi)
+        loss_dis = -torch.mean(real_score) + torch.mean(fake_score) + gradient_penalty * 10 / (args.phi ** 2)
+
         loss_dis.backward()
         optimizer_dis.step()
 
@@ -89,9 +96,10 @@ for epoch in range(args.epoch):
         # Update Generator
         optimizer_gen.zero_grad()
 
-        fake_valid = discriminator(fake_imgs)
+        fake_score = discriminator(fake_imgs)
 
-        loss_gen = -torch.mean(fake_valid).to(device)
+        loss_gen = -torch.mean(fake_score)
+
         loss_gen.backward()
         optimizer_gen.step()
 
@@ -103,11 +111,15 @@ for epoch in range(args.epoch):
                 f"[Epoch {epoch}/{args.epoch}] [Batch {index % len(train_loader)}/{len(train_loader)}] "
                 f"[D loss: {round(loss_dis.item(), 4)}] [G loss: {round(loss_gen.item(), 4)}]"
             )
-        if iteration % 500 == 0:
+        if iteration % 800 == 0:
             writer.add_image(
                 "Generated Images",
-                vutils.make_grid(fake_imgs, padding=2, normalize=True),
+                vutils.make_grid(fake_imgs, padding=2, normalize=True, scale_each=True),
                 iteration
             )
 
         iteration += 1
+
+    # Checkpoint
+    # checkpoint.update(1, epoch)
+# checkpoint.update(1, args.epoch)
