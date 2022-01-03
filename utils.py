@@ -70,51 +70,27 @@ class LinearLrDecay(object):
 
 
 class Checkpoint:
-    def __init__(
-            self,
-            checkpoint_folder: str,
-            discriminator, generator,
-            optimizer_dis, optimizer_gen,
-            max_checkpoints: int
-    ):
+    def __init__(self, checkpoint_folder: str, generator, discriminator, optimizer_gen, optimizer_dis):
         self.checkpoint_dir = checkpoint_folder
-        self.discriminator = discriminator
         self.generator = generator
-        self.optimizer_dis = optimizer_dis
+        self.discriminator = discriminator
         self.optimizer_gen = optimizer_gen
-        self.best_score = 1.e4
-        self.epoch = 0
-        self.max_checkpoints = max_checkpoints
+        self.optimizer_dis = optimizer_dis
 
-    def update(self, new_best_score, epoch):
-        lowest_score = 1.e4
-        num_checkpoints = os.listdir(self.checkpoint_dir)
-        if num_checkpoints == self.max_checkpoints:
-            lowest_score = self._find_lowest_score()
-        if new_best_score < self.best_score:
-            self.best_score = new_best_score
-            self.epoch = epoch
-            self.save(f"{self.best_score}.pth")
-
-    def save(self, filename: str):
+    def save(self, filename: str, score: float, epoch: int):
         torch.save({
-            "discriminator_state_dict": self.discriminator.state_dict(),
             "generator_state_dict": self.generator.state_dict(),
-            "optimizer_discriminator_state_dict": self.optimizer_dis.state_dict(),
+            "discriminator_state_dict": self.discriminator.state_dict(),
             "optimizer_generator_state_dict": self.optimizer_gen.state_dict(),
-            "score": self.best_score,
-            "epoch": self.epoch,
+            "optimizer_discriminator_state_dict": self.optimizer_dis.state_dict(),
+            "score": score,
+            "epoch": epoch,
         }, os.path.join(self.checkpoint_dir, filename))
 
     def load(self, filename: str):
         checkpoint = torch.load(os.path.join(self.checkpoint_dir, filename))
-        self.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
         self.generator.load_state_dict(checkpoint["generator_state_dict"])
-        self.optimizer_dis.load_state_dict(checkpoint["optimizer_discriminator_state_dict"])
+        self.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
         self.optimizer_gen.load_state_dict(checkpoint["optimizer_generator_state_dict"])
-        self.best_score = checkpoint["score"]
-        self.epoch = checkpoint["epoch"]
-
-    def _find_lowest_score(self):
-        scores = map(lambda filename: float(filename.split(".")[0]), os.listdir(self.checkpoint_dir))
-        return min(scores)
+        self.optimizer_dis.load_state_dict(checkpoint["optimizer_discriminator_state_dict"])
+        return checkpoint["score"], checkpoint["epoch"]

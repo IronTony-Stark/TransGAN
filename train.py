@@ -70,7 +70,7 @@ train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
 
 writer = SummaryWriter("./runs/")
-checkpoint = Checkpoint("./checkpoints/", discriminator, generator, optimizer_dis, optimizer_gen)
+checkpoint = Checkpoint("./checkpoints/", generator, discriminator, optimizer_gen, optimizer_dis)
 
 iteration = 0
 for epoch in range(args.epoch):
@@ -120,6 +120,22 @@ for epoch in range(args.epoch):
 
         iteration += 1
 
+    # Validation
+    inception_score = 1.
+    fid_score = 1.
+
+    writer.add_scalar("Inception Score", inception_score, epoch)
+    writer.add_scalar("FID Score", fid_score, epoch)
+
     # Checkpoint
-    # checkpoint.update(1, epoch)
-# checkpoint.update(1, args.epoch)
+    checkpoint.save(f"{fid_score}.pth", fid_score, epoch)
+
+# Validation
+inception_score = 1.
+fid_score = 1.
+
+writer.add_scalar("Inception Score", inception_score, args.epoch)
+writer.add_scalar("FID Score", fid_score, args.epoch)
+
+# Checkpoint
+checkpoint.save(f"{fid_score}.pth", fid_score, args.epoch)
