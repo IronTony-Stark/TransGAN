@@ -1,0 +1,1 @@
+### Some code was taken from https://github.com/asarigun/TransGAN

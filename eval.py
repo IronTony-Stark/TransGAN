@@ -22,6 +22,6 @@ gen_loader = DataLoader(gen_dataset, batch_size=50, num_workers=0)
     gen_loader, "./fid_stats_cifar10_train.npz", device=torch.device('cpu')
 )
 
-print(f"Inception score mean: {IS}")
-print(f"Inception score standard deviation: {IS_std}")
-print(f"Frechet inception distance: {FID}")
+print(f"Inception score mean: {IS}")  # 7.345951844135679
+print(f"Inception score standard deviation: {IS_std}")  # 0.2676797280273129
+print(f"Frechet inception distance: {FID}")  # 49.04835930493152

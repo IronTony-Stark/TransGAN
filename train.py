@@ -1,5 +1,3 @@
-# Some code taken from https://github.com/asarigun/TransGAN
-
 import argparse
 
 import torch.optim as optim

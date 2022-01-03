@@ -1,5 +1,3 @@
-# Mostly taken from https://github.com/asarigun/TransGAN
-
 import torch
 import torch.nn as nn
 
