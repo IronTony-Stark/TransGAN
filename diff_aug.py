@@ -4,9 +4,10 @@
 # Shengyu Zhao, Zhijian Liu, Ji Lin, Jun-Yan Zhu, and Song Han
 # https://arxiv.org/pdf/2006.10738
 
+import random
+
 import torch
 import torch.nn.functional as F
-import random
 
 
 def DiffAugment(x, policy='', channels_first=True):

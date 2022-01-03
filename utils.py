@@ -1,7 +1,9 @@
+import os
+
 import numpy as np
 import torch
 import torch.nn as nn
-import os
+from torch.utils.data import Dataset
 
 
 def up_sampling(x, H, W):
@@ -94,3 +96,18 @@ class Checkpoint:
         self.optimizer_gen.load_state_dict(checkpoint["optimizer_generator_state_dict"])
         self.optimizer_dis.load_state_dict(checkpoint["optimizer_discriminator_state_dict"])
         return checkpoint["score"], checkpoint["epoch"]
+
+
+# NOTE: Remember to set num_workers=0 to avoid copying models across multiprocess
+class GeneratorDataset(Dataset):
+    def __init__(self, G, latent_dim: int, length: int, device: torch.device = torch.device("cuda")):
+        self.G = G
+        self.latent_dim = latent_dim
+        self.length = length
+        self.device = device
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, index):
+        return self.G(gen_noise(1, self.latent_dim).to(self.device))[0]

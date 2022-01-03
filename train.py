@@ -1,16 +1,16 @@
-# Mostly taken from https://github.com/asarigun/TransGAN
+# Some code taken from https://github.com/asarigun/TransGAN
 
-import numpy as np
+import argparse
+
 import torch.optim as optim
-from torch.utils.tensorboard import SummaryWriter
 import torchvision
 import torchvision.utils as vutils
-from torchvision import transforms
 from torch.utils.data import DataLoader
-import argparse
-from utils import *
+from torch.utils.tensorboard import SummaryWriter
+from torchvision import transforms
 
 from models import *
+from utils import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--img_size", type=int, default=32, help="Size of image for discriminator input.")
@@ -25,6 +25,8 @@ parser.add_argument("--patch_size", type=int, default=4, help="Patch size for di
 parser.add_argument("--initial_size", type=int, default=8, help="Initial size for generator.")
 parser.add_argument("--latent_dim", type=int, default=1024, help="Latent dimension of generator's input.")
 parser.add_argument("--diff_aug", type=str, default="color,translation,cutout", help="Data Augmentation")
+parser.add_argument("--weight_log_iter", type=int, default=1_000_000_000,
+                    help="Log weights and gradients every <weight_log_iter> iterations")
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -117,25 +119,19 @@ for epoch in range(args.epoch):
                 vutils.make_grid(fake_imgs, padding=2, normalize=True, scale_each=True),
                 iteration
             )
+        if iteration % args.weight_log_iter == 0:
+            for name, weight in generator.named_parameters():
+                writer.add_histogram(f"Generator/{name}", weight, iteration)
+                writer.add_histogram(f"Generator/{name}.grad", weight.grad, iteration)
+            for name, weight in discriminator.named_parameters():
+                writer.add_histogram(f"Discriminator/{name}", weight, iteration)
+                writer.add_histogram(f"Discriminator/{name}.grad", weight.grad, iteration)
 
         iteration += 1
 
-    # Validation
-    inception_score = 1.
-    fid_score = 1.
-
-    writer.add_scalar("Inception Score", inception_score, epoch)
-    writer.add_scalar("FID Score", fid_score, epoch)
-
     # Checkpoint
-    checkpoint.save(f"{fid_score}.pth", fid_score, epoch)
-
-# Validation
-inception_score = 1.
-fid_score = 1.
-
-writer.add_scalar("Inception Score", inception_score, args.epoch)
-writer.add_scalar("FID Score", fid_score, args.epoch)
+    # noinspection PyUnboundLocalVariable
+    checkpoint.save(f"{epoch}.pth", loss_gen.item(), epoch)
 
 # Checkpoint
-checkpoint.save(f"{fid_score}.pth", fid_score, args.epoch)
+checkpoint.save(f"final.pth", loss_gen.item(), args.epoch)
