@@ -109,5 +109,6 @@ class GeneratorDataset(Dataset):
     def __len__(self):
         return self.length
 
+    @torch.no_grad()
     def __getitem__(self, index):
         return self.G(gen_noise(1, self.latent_dim).to(self.device))[0]
