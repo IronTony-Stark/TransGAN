@@ -41,7 +41,7 @@ class EqLinear(nn.Module):
         super().__init__()
 
         linear = nn.Linear(*args, **kwargs)
-        nn.init.normal_(linear.weight.data, 1.)
+        nn.init.normal_(linear.weight.data)
         if linear.bias is not None:
             nn.init.constant_(linear.bias.data, 0)
         EqualLR.apply(linear, "weight")
@@ -57,9 +57,9 @@ class EqConv2d(Module):
         super().__init__()
 
         conv = nn.Conv2d(*args, **kwargs)
-        nn.init.normal_(conv.weight.data, 1.)
+        nn.init.normal_(conv.weight.data)
         if conv.bias is not None:
-            nn.init.constant_(conv.bias, 0)
+            nn.init.constant_(conv.bias.data, 0)
         EqualLR.apply(conv, "weight")
 
         self.conv = conv

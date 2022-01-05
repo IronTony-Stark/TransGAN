@@ -2,9 +2,8 @@ import os
 
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset
-
-from equalized_lr import *
 
 
 def up_sampling(x, H, W, scale_factor=2, mode="pixel_shuffle"):
@@ -141,7 +140,6 @@ class PixelNorm(nn.Module):
 class Normalization(nn.Module):
     def __init__(self, type: str = "", dim: int = None):
         super().__init__()
-        self.norm_type = type
         if type == "LN":
             self.norm = nn.LayerNorm(dim)
         elif type == "BN":
@@ -152,7 +150,6 @@ class Normalization(nn.Module):
             self.norm = PixelNorm()
 
     def forward(self, x):
-        if self.norm_type:
+        if hasattr(self, "norm"):
             return self.norm(x)
-        else:
-            return x
+        return x
