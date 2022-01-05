@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 
 from diff_aug import DiffAugment
-from utils import up_sampling
+from utils import up_sampling, Normalization
+from equalized_lr import *
 
 
 class MLP(nn.Module):
@@ -13,9 +14,9 @@ class MLP(nn.Module):
             hid_feat = in_feat
         if not out_feat:
             out_feat = in_feat
-        self.fc1 = nn.Linear(in_feat, hid_feat)
+        self.fc1 = EqLinear(in_feat, hid_feat)
         self.act = nn.GELU()
-        self.fc2 = nn.Linear(hid_feat, out_feat)
+        self.fc2 = EqLinear(hid_feat, out_feat)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
@@ -31,10 +32,10 @@ class Attention(nn.Module):
         self.heads = heads
         self.scale = 1. / dim ** 0.5
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=False)
+        self.qkv = EqLinear(dim, dim * 3, bias=False)
         self.attention_dropout = nn.Dropout(attention_dropout)
         self.out = nn.Sequential(
-            nn.Linear(dim, dim),
+            EqLinear(dim, dim),
             nn.Dropout(proj_dropout)
         )
 
@@ -48,43 +49,44 @@ class Attention(nn.Module):
         attn = self.attention_dropout(attn)
 
         x = (attn @ v).transpose(1, 2).reshape(b, n, c)
-        x = self.out(x)
-        return x
+
+        return self.out(x)
 
 
 class EncoderBlock(nn.Module):
-    def __init__(self, dim, heads, mlp_ratio=4, drop_rate=0.):
+    def __init__(self, dim, heads, mlp_ratio=4, drop_rate=0., normalization_type="LN"):
         super().__init__()
-        self.ln1 = nn.LayerNorm(dim)
+        self.norm1 = Normalization(normalization_type, dim)
         self.attn = Attention(dim, heads, drop_rate, drop_rate)
-        self.ln2 = nn.LayerNorm(dim)
+        self.norm2 = Normalization(normalization_type, dim)
         self.mlp = MLP(dim, dim * mlp_ratio, dropout=drop_rate)
 
     def forward(self, x):
-        x1 = self.ln1(x)
+        x1 = self.norm1(x)
         x = x + self.attn(x1)
-        x2 = self.ln2(x)
+        x2 = self.norm2(x)
         x = x + self.mlp(x2)
         return x
 
 
 class TransformerEncoder(nn.Module):
-    def __init__(self, depth, dim, heads, mlp_ratio=4, drop_rate=0.):
+    def __init__(self, depth, dim, heads, mlp_ratio=4, drop_rate=0., norm_type="LN"):
         super().__init__()
-        self.Encoder_Blocks = nn.ModuleList([
-            EncoderBlock(dim, heads, mlp_ratio, drop_rate)
-            for _ in range(depth)])
+        self.encoder_blocks = nn.ModuleList([
+            EncoderBlock(dim, heads, mlp_ratio, drop_rate, norm_type)
+            for _ in range(depth)
+        ])
 
     def forward(self, x):
-        for Encoder_Block in self.Encoder_Blocks:
-            x = Encoder_Block(x)
+        for block in self.encoder_blocks:
+            x = block(x)
         return x
 
 
 class ImgPatches(nn.Module):
     def __init__(self, input_channel=3, dim=768, patch_size=4):
         super().__init__()
-        self.patch_embed = nn.Conv2d(
+        self.patch_embed = EqConv2d(
             input_channel, dim, kernel_size=patch_size, stride=patch_size
         )
 
@@ -94,9 +96,9 @@ class ImgPatches(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, depth1=5, depth2=4, depth3=2, initial_size=8, dim=384, heads=4, mlp_ratio=4,
-                 drop_rate=0.):
-        super(Generator, self).__init__()
+    def __init__(self, depth1=5, depth2=4, depth3=2, latent_dim=1024, initial_size=8, dim=384, heads=4, mlp_ratio=4,
+                 drop_rate=0., norm_type="PN"):
+        super().__init__()
 
         self.initial_size = initial_size
         self.dim = dim
@@ -107,7 +109,7 @@ class Generator(nn.Module):
         self.mlp_ratio = mlp_ratio
         self.drop_rate = drop_rate
 
-        self.mlp = nn.Linear(1024, (self.initial_size ** 2) * self.dim)
+        self.mlp = EqLinear(latent_dim, (self.initial_size ** 2) * self.dim)
 
         self.positional_embedding_1 = nn.Parameter(torch.zeros(1, (8 ** 2), 384))
         self.positional_embedding_2 = nn.Parameter(torch.zeros(1, (8 * 2) ** 2, 384 // 4))
@@ -115,24 +117,27 @@ class Generator(nn.Module):
 
         self.transformer_encoder_1 = TransformerEncoder(
             depth=self.depth1, dim=self.dim, heads=self.heads,
-            mlp_ratio=self.mlp_ratio, drop_rate=self.drop_rate
+            mlp_ratio=self.mlp_ratio, drop_rate=self.drop_rate,
+            norm_type=norm_type
         )
         self.transformer_encoder_2 = TransformerEncoder(
             depth=self.depth2, dim=self.dim // 4, heads=self.heads,
-            mlp_ratio=self.mlp_ratio, drop_rate=self.drop_rate
+            mlp_ratio=self.mlp_ratio, drop_rate=self.drop_rate,
+            norm_type=norm_type
         )
         self.transformer_encoder_3 = TransformerEncoder(
             depth=self.depth3, dim=self.dim // 16, heads=self.heads,
-            mlp_ratio=self.mlp_ratio, drop_rate=self.drop_rate
+            mlp_ratio=self.mlp_ratio, drop_rate=self.drop_rate,
+            norm_type=norm_type
         )
 
-        self.linear = nn.Sequential(nn.Conv2d(self.dim // 16, 3, 1, 1, 0))
+        self.out = EqConv2d(self.dim // 16, 3, 1, 1, 0)
 
     def forward(self, noise):
         x = self.mlp(noise).view(-1, self.initial_size ** 2, self.dim)
 
-        x = x + self.positional_embedding_1
         H, W = self.initial_size, self.initial_size
+        x = x + self.positional_embedding_1
         x = self.transformer_encoder_1(x)
 
         x, H, W = up_sampling(x, H, W)
@@ -141,9 +146,9 @@ class Generator(nn.Module):
 
         x, H, W = up_sampling(x, H, W)
         x = x + self.positional_embedding_3
-
         x = self.transformer_encoder_3(x)
-        x = self.linear(x.permute(0, 2, 1).view(-1, self.dim // 16, H, W))
+
+        x = self.out(x.permute(0, 2, 1).view(-1, self.dim // 16, H, W))
 
         return x
 
@@ -151,7 +156,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, diff_aug, image_size=32, patch_size=4, input_channel=3, num_classes=1,
                  dim=384, depth=7, heads=4, mlp_ratio=4,
-                 drop_rate=0.):
+                 drop_rate=0., norm_type="LN"):
         super().__init__()
         if image_size % patch_size != 0:
             raise ValueError('Image size must be divisible by patch size.')
@@ -169,21 +174,13 @@ class Discriminator(nn.Module):
         nn.init.trunc_normal_(self.class_embedding, std=0.2)
 
         self.dropout = nn.Dropout(p=drop_rate)
-        self.transfomer_encoder = TransformerEncoder(depth, dim, heads,
-                                                     mlp_ratio, drop_rate)
-        self.norm = nn.LayerNorm(dim)
-        self.out = nn.Linear(dim, num_classes)
-        self.apply(self._init_weights)
-
-    @staticmethod
-    def _init_weights(m):
-        if isinstance(m, nn.Linear):
-            nn.init.trunc_normal_(m.weight, std=.02)
-            if isinstance(m, nn.Linear) and m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
+        self.transformer_encoder = TransformerEncoder(
+            depth, dim, heads,
+            mlp_ratio, drop_rate,
+            norm_type=norm_type
+        )
+        self.norm = Normalization(norm_type, dim)
+        self.out = EqLinear(dim, num_classes)
 
     def forward(self, x):
         x = DiffAugment(x, self.diff_aug)
@@ -194,7 +191,8 @@ class Discriminator(nn.Module):
         x = torch.cat((cls_token, x), dim=1)
         x += self.positional_embedding
         x = self.dropout(x)
-        x = self.transfomer_encoder(x)
+        x = self.transformer_encoder(x)
         x = self.norm(x)
         x = self.out(x[:, 0])
+
         return x
