@@ -16,6 +16,8 @@ parser.add_argument("--epoch", type=int, default=200, help="Number of epoch.")
 parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
 parser.add_argument("--lr_gen", type=float, default=0.0001, help="Learning rate for generator.")
 parser.add_argument("--lr_dis", type=float, default=0.0001, help="Learning rate for discriminator.")
+parser.add_argument("--lr_decay_start_epoch", type=int, default=50,
+                    help="Epoch number to start linear decay of learning rate")
 parser.add_argument("--beta1", type=int, default="0", help="beta1")
 parser.add_argument("--beta2", type=float, default="0.99", help="beta2")
 parser.add_argument('--phi', type=int, default="1", help='phi')
@@ -58,8 +60,8 @@ optimizer_dis = optim.Adam(
     betas=(args.beta1, args.beta2)
 )
 
-# lr_decay_gen = LinearLrDecay(optimizer_gen, args.lr_gen, 0.0, 0, args.max_iter * args.n_critic)
-# lr_decay_dis = LinearLrDecay(optimizer_dis, args.lr_dis, 0.0, 0, args.max_iter * args.n_critic)
+lr_decay_gen = LinearLrDecay(optimizer_gen, args.lr_gen, 0.0, args.lr_decay_start_epoch, args.epoch)
+lr_decay_dis = LinearLrDecay(optimizer_dis, args.lr_dis, 0.0, args.lr_decay_start_epoch, args.epoch)
 
 train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download=True, transform=transforms.Compose([
     transforms.Resize(size=(args.img_size, args.img_size)),
@@ -74,6 +76,14 @@ checkpoint = Checkpoint("./checkpoints/", generator, discriminator, optimizer_ge
 
 iteration = 0
 for epoch in range(args.epoch):
+
+    # Learning Rate Decay
+    lr_gen = lr_decay_gen.step(epoch)
+    lr_dis = lr_decay_dis.step(epoch)
+
+    writer.add_scalar("Generator/LR", lr_gen, epoch)
+    writer.add_scalar("Discriminator/LR", lr_dis, epoch)
+
     for index, (batch_imgs, _) in enumerate(train_loader):
         noise = gen_noise(batch_imgs.shape[0], args.latent_dim).to(device)
         real_imgs = batch_imgs.to(device)
@@ -117,7 +127,7 @@ for epoch in range(args.epoch):
                 vutils.make_grid(fake_imgs, padding=2, normalize=True, scale_each=True),
                 iteration
             )
-        if iteration % args.weight_log_iter == 0:
+        if iteration % args.weight_log_iter == 0 and iteration != 0:
             for name, weight in generator.named_parameters():
                 writer.add_histogram(f"Generator/{name}", weight, iteration)
                 writer.add_histogram(f"Generator/{name}.grad", weight.grad, iteration)
