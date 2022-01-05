@@ -97,7 +97,7 @@ class ImgPatches(nn.Module):
 
 class Generator(nn.Module):
     def __init__(self, depth1=5, depth2=4, depth3=2, latent_dim=1024, initial_size=8, dim=384, heads=4, mlp_ratio=4,
-                 drop_rate=0., norm_type="PN"):
+                 drop_rate=0., norm_type="LN"):
         super().__init__()
 
         self.initial_size = initial_size
