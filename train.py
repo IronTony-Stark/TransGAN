@@ -18,8 +18,9 @@ parser.add_argument("--lr_gen", type=float, default=0.0001, help="Learning rate 
 parser.add_argument("--lr_dis", type=float, default=0.0001, help="Learning rate for discriminator.")
 parser.add_argument("--lr_decay_start_epoch", type=int, default=50,
                     help="Epoch number to start linear decay of learning rate")
-parser.add_argument("--beta1", type=int, default="0", help="beta1")
-parser.add_argument("--beta2", type=float, default="0.99", help="beta2")
+parser.add_argument("--optimizer", type=str, default="Adam", help="Optimizer")
+parser.add_argument("--beta1", type=float, default=0.9, help="beta1")
+parser.add_argument("--beta2", type=float, default=0.999, help="beta2")
 parser.add_argument('--phi', type=int, default="1", help='phi')
 parser.add_argument("--patch_size", type=int, default=4, help="Patch size for discriminator.")
 parser.add_argument("--initial_size", type=int, default=8, help="Initial size for generator.")
@@ -68,14 +69,24 @@ discriminator.to(device)
 generator.train()
 discriminator.train()
 
-optimizer_gen = optim.Adam(
-    filter(lambda p: p.requires_grad, generator.parameters()), lr=args.lr_gen,
-    betas=(args.beta1, args.beta2)
-)
-optimizer_dis = optim.Adam(
-    filter(lambda p: p.requires_grad, discriminator.parameters()), lr=args.lr_dis,
-    betas=(args.beta1, args.beta2)
-)
+if args.optimizer == "Adam":
+    optimizer_gen = optim.Adam(
+        filter(lambda p: p.requires_grad, generator.parameters()), lr=args.lr_gen,
+        betas=(args.beta1, args.beta2)
+    )
+    optimizer_dis = optim.Adam(
+        filter(lambda p: p.requires_grad, discriminator.parameters()), lr=args.lr_dis,
+        betas=(args.beta1, args.beta2)
+    )
+else:
+    optimizer_gen = optim.SGD(
+        filter(lambda p: p.requires_grad, generator.parameters()),
+        lr=args.lr_gen
+    )
+    optimizer_dis = optim.SGD(
+        filter(lambda p: p.requires_grad, discriminator.parameters()),
+        lr=args.lr_dis
+    )
 
 lr_decay_gen = LinearLrDecay(optimizer_gen, args.lr_gen, 0.0, args.lr_decay_start_epoch, args.epoch)
 lr_decay_dis = LinearLrDecay(optimizer_dis, args.lr_dis, 0.0, args.lr_decay_start_epoch, args.epoch)
