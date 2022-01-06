@@ -25,6 +25,7 @@ parser.add_argument("--patch_size", type=int, default=4, help="Patch size for di
 parser.add_argument("--initial_size", type=int, default=8, help="Initial size for generator.")
 parser.add_argument("--latent_dim", type=int, default=1024, help="Latent dimension of generator's input.")
 parser.add_argument("--diff_aug", type=str, default="color,translation,cutout", help="Data Augmentation")
+parser.add_argument("--log_comment", type=str, default="TransGAN", help="Tensorboard comment to differentiate runs")
 parser.add_argument("--weight_log_iter", type=int, default=100,
                     help="Log weights and gradients every <weight_log_iter> iterations (batches)")
 parser.add_argument("--n_critic", type=int, default=1,
@@ -87,10 +88,8 @@ train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download
 ]))
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
 
-writer = SummaryWriter("./runs/")
+writer = SummaryWriter(log_dir="./runs/", comment=args.log_comment)
 checkpoint = Checkpoint("./checkpoints/", generator, discriminator, optimizer_gen, optimizer_dis)
-
-import time
 
 iteration = 0
 for epoch in range(args.epoch):
