@@ -52,12 +52,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 generator = Generator(
     depth1=5, depth2=4, depth3=2,
     initial_size=args.initial_size, dim=384, heads=4,
-    mlp_ratio=4, drop_rate=0.2
+    mlp_ratio=4, drop_rate=0.4
 )
 discriminator = Discriminator(
     diff_aug=args.diff_aug, image_size=32, patch_size=args.patch_size, input_channel=3,
     num_classes=1, dim=384, depth=7, heads=4,
-    mlp_ratio=4, drop_rate=0.5
+    mlp_ratio=4, drop_rate=0.4
 )
 
 generator.apply(inits_weight)
