@@ -165,7 +165,7 @@ for epoch in range(args.epoch):
 
     # Checkpoint
     # noinspection PyUnboundLocalVariable
-    checkpoint.save(f"{epoch}.pth", loss_gen.item(), epoch)
+    # checkpoint.save(f"{epoch}.pth", loss_gen.item(), epoch)
 
 # Checkpoint
-checkpoint.save(f"final.pth", loss_gen.item(), args.epoch)
+# checkpoint.save(f"final.pth", loss_gen.item(), args.epoch)
