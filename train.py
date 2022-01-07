@@ -15,14 +15,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--img_size", type=int, default=32, help="Size of image for discriminator input.")
 parser.add_argument("--epoch", type=int, default=200, help="Number of epoch.")
 parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
-parser.add_argument("--lr_gen", type=float, default=0.0001, help="Learning rate for generator.")
-parser.add_argument("--lr_dis", type=float, default=0.0001, help="Learning rate for discriminator.")
+parser.add_argument("--lr_gen", type=float, default=0.001, help="Learning rate for generator.")
+parser.add_argument("--lr_dis", type=float, default=0.001, help="Learning rate for discriminator.")
 parser.add_argument("--lr_decay_start_epoch", type=int, default=50,
                     help="Epoch number to start linear decay of learning rate")
 parser.add_argument("--optimizer", type=str, default="Adam", help="Optimizer")
-parser.add_argument("--beta1", type=float, default=0.9, help="beta1")
-parser.add_argument("--beta2", type=float, default=0.999, help="beta2")
-parser.add_argument('--phi', type=int, default="1", help='phi')
+parser.add_argument("--beta1", type=float, default=0.0, help="beta1")
+parser.add_argument("--beta2", type=float, default=0.99, help="beta2")
+parser.add_argument("--phi", type=int, default=1, help="phi")
 parser.add_argument("--patch_size", type=int, default=4, help="Patch size for discriminator.")
 parser.add_argument("--initial_size", type=int, default=8, help="Initial size for generator.")
 parser.add_argument("--latent_dim", type=int, default=1024, help="Latent dimension of generator's input.")
@@ -58,7 +58,7 @@ generator = Generator(
 discriminator = Discriminator(
     diff_aug=args.diff_aug, image_size=32, patch_size=args.patch_size, input_channel=3,
     num_classes=1, dim=384, depth=7, heads=4,
-    mlp_ratio=4, drop_rate=0.4
+    mlp_ratio=4, drop_rate=0.2
 )
 
 generator.apply(inits_weight)
