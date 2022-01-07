@@ -21,7 +21,7 @@ class EqualLR:
         weight = getattr(module, self.name + '_orig')
         fan_in = weight.data.size(1) * weight.data[0][0].numel()
 
-        return weight * sqrt(self.multiply / fan_in)
+        return weight * self.multiply * sqrt(1 / fan_in)
 
     @staticmethod
     def apply(module: Module, name: str):
