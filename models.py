@@ -14,9 +14,9 @@ class MLP(nn.Module):
             hid_feat = in_feat
         if not out_feat:
             out_feat = in_feat
-        self.fc1 = EqLinear(in_feat, hid_feat)
+        self.fc1 = EqualLinear(in_feat, hid_feat)
         self.act = nn.GELU()
-        self.fc2 = EqLinear(hid_feat, out_feat)
+        self.fc2 = EqualLinear(hid_feat, out_feat)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
@@ -32,10 +32,10 @@ class Attention(nn.Module):
         self.heads = heads
         self.scale = 1. / dim ** 0.5
 
-        self.qkv = EqLinear(dim, dim * 3, bias=False)
+        self.qkv = EqualLinear(dim, dim * 3, bias=False)
         self.attention_dropout = nn.Dropout(attention_dropout)
         self.out = nn.Sequential(
-            EqLinear(dim, dim),
+            EqualLinear(dim, dim),
             nn.Dropout(proj_dropout)
         )
 
@@ -86,7 +86,7 @@ class TransformerEncoder(nn.Module):
 class ImgPatches(nn.Module):
     def __init__(self, input_channel=3, dim=768, patch_size=4):
         super().__init__()
-        self.patch_embed = EqConv2d(
+        self.patch_embed = EqualConv2d(
             input_channel, dim, kernel_size=patch_size, stride=patch_size
         )
 
@@ -109,7 +109,7 @@ class Generator(nn.Module):
         self.mlp_ratio = mlp_ratio
         self.drop_rate = drop_rate
 
-        self.mlp = EqLinear(latent_dim, (self.initial_size ** 2) * self.dim)
+        self.mlp = EqualLinear(latent_dim, (self.initial_size ** 2) * self.dim)
 
         self.positional_embedding_1 = nn.Parameter(torch.zeros(1, (8 ** 2), 384))
         self.positional_embedding_2 = nn.Parameter(torch.zeros(1, (8 * 2) ** 2, 384 // 4))
@@ -131,7 +131,7 @@ class Generator(nn.Module):
             norm_type=norm_type
         )
 
-        self.out = EqConv2d(self.dim // 16, 3, 1, 1, 0)
+        self.out = EqualConv2d(self.dim // 16, 3, 1, 1, 0)
 
     def forward(self, noise):
         x = self.mlp(noise).view(-1, self.initial_size ** 2, self.dim)
@@ -180,7 +180,7 @@ class Discriminator(nn.Module):
             norm_type=norm_type
         )
         self.norm = Normalization(norm_type, dim)
-        self.out = EqLinear(dim, num_classes)
+        self.out = EqualLinear(dim, num_classes)
 
     def forward(self, x):
         x = DiffAugment(x, self.diff_aug)
