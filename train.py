@@ -169,12 +169,14 @@ for epoch in range(args.epoch):
             )
         if iteration % args.weight_log_iter == 0 and iteration != 0:
             for name, weight in generator.named_parameters():
-                if name and weight is not None:
+                if weight is not None:
                     writer.add_histogram(f"Generator/{name}", weight, iteration)
+                if weight.grad is not None:
                     writer.add_histogram(f"Generator/{name}.grad", weight.grad, iteration)
             for name, weight in discriminator.named_parameters():
-                if name and weight is not None:
+                if weight is not None:
                     writer.add_histogram(f"Discriminator/{name}", weight, iteration)
+                if weight.grad is not None:
                     writer.add_histogram(f"Discriminator/{name}.grad", weight.grad, iteration)
 
         iteration += 1
