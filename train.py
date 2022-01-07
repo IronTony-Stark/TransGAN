@@ -1,5 +1,6 @@
 import argparse
 
+import torch
 import torch.optim as optim
 import torchvision
 import torchvision.utils as vutils
@@ -95,6 +96,7 @@ train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download
     transforms.Resize(size=(args.img_size, args.img_size)),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
+    # transforms.GaussianBlur(3),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ]))
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
@@ -118,6 +120,7 @@ for epoch in range(args.epoch):
 
         noise = gen_noise(batch_imgs.shape[0], args.latent_dim).to(device)
         real_imgs = batch_imgs.to(device)
+        # real_imgs += torch.randn(batch_imgs.size(), device=device)
         fake_imgs = generator(noise)
 
         # Update Discriminator
@@ -166,11 +169,13 @@ for epoch in range(args.epoch):
             )
         if iteration % args.weight_log_iter == 0 and iteration != 0:
             for name, weight in generator.named_parameters():
-                writer.add_histogram(f"Generator/{name}", weight, iteration)
-                writer.add_histogram(f"Generator/{name}.grad", weight.grad, iteration)
+                if name and weight:
+                    writer.add_histogram(f"Generator/{name}", weight, iteration)
+                    writer.add_histogram(f"Generator/{name}.grad", weight.grad, iteration)
             for name, weight in discriminator.named_parameters():
-                writer.add_histogram(f"Discriminator/{name}", weight, iteration)
-                writer.add_histogram(f"Discriminator/{name}.grad", weight.grad, iteration)
+                if name and weight:
+                    writer.add_histogram(f"Discriminator/{name}", weight, iteration)
+                    writer.add_histogram(f"Discriminator/{name}.grad", weight.grad, iteration)
 
         iteration += 1
 
