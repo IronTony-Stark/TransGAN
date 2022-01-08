@@ -18,13 +18,14 @@ parser.add_argument("--lr_gen", type=float, default=0.0001, help="Learning rate 
 parser.add_argument("--lr_dis", type=float, default=0.0001, help="Learning rate for discriminator.")
 parser.add_argument("--lr_decay_start_epoch", type=int, default=50,
                     help="Epoch number to start linear decay of learning rate")
-parser.add_argument("--beta1", type=int, default="0", help="beta1")
-parser.add_argument("--beta2", type=float, default="0.99", help="beta2")
-parser.add_argument('--phi', type=int, default="1", help='phi')
+parser.add_argument("--beta1", type=float, default=0.0, help="beta1")
+parser.add_argument("--beta2", type=float, default=0.99, help="beta2")
+parser.add_argument("--phi", type=int, default=1, help="phi")
 parser.add_argument("--patch_size", type=int, default=4, help="Patch size for discriminator.")
 parser.add_argument("--initial_size", type=int, default=8, help="Initial size for generator.")
 parser.add_argument("--latent_dim", type=int, default=1024, help="Latent dimension of generator's input.")
 parser.add_argument("--diff_aug", type=str, default="color,translation,cutout", help="Data Augmentation")
+parser.add_argument("--log_dir", type=str, default=None, help="Tensorboard log directory")
 parser.add_argument("--weight_log_iter", type=int, default=100,
                     help="Log weights and gradients every <weight_log_iter> iterations (batches)")
 parser.add_argument("--n_critic", type=int, default=1,
@@ -87,10 +88,8 @@ train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download
 ]))
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
 
-writer = SummaryWriter("./runs/")
+writer = SummaryWriter(log_dir=args.log_dir)
 checkpoint = Checkpoint("./checkpoints/", generator, discriminator, optimizer_gen, optimizer_dis)
-
-import time
 
 iteration = 0
 for epoch in range(args.epoch):
@@ -156,17 +155,21 @@ for epoch in range(args.epoch):
             )
         if iteration % args.weight_log_iter == 0 and iteration != 0:
             for name, weight in generator.named_parameters():
-                writer.add_histogram(f"Generator/{name}", weight, iteration)
-                writer.add_histogram(f"Generator/{name}.grad", weight.grad, iteration)
+                if weight is not None:
+                    writer.add_histogram(f"Generator/{name}", weight, iteration)
+                if weight.grad is not None:
+                    writer.add_histogram(f"Generator/{name}.grad", weight.grad, iteration)
             for name, weight in discriminator.named_parameters():
-                writer.add_histogram(f"Discriminator/{name}", weight, iteration)
-                writer.add_histogram(f"Discriminator/{name}.grad", weight.grad, iteration)
+                if weight is not None:
+                    writer.add_histogram(f"Discriminator/{name}", weight, iteration)
+                if weight.grad is not None:
+                    writer.add_histogram(f"Discriminator/{name}.grad", weight.grad, iteration)
 
         iteration += 1
 
     # Checkpoint
     # noinspection PyUnboundLocalVariable
-    checkpoint.save(f"{epoch}.pth", loss_gen.item(), epoch)
+    # checkpoint.save(f"{epoch}.pth", loss_gen.item(), epoch)
 
 # Checkpoint
-checkpoint.save(f"final.pth", loss_gen.item(), args.epoch)
+# checkpoint.save(f"final.pth", loss_gen.item(), args.epoch)
