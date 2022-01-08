@@ -129,7 +129,7 @@ class EqualLinear(nn.Module):
 
     def forward(self, input):
         out = F.linear(
-            input, self.weight * self.scale, bias=self.bias * self.lr_mul
+            input, self.weight * self.scale, bias=self.bias * self.lr_mul if self.bias is not None else None
         )
 
         return out
