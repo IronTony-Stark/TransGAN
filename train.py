@@ -120,8 +120,8 @@ for epoch in range(args.epoch):
         if iteration > args.gen_head_start:
             optimizer_dis.zero_grad()
 
-            real_score = discriminator(real_imgs + noise_decay(real_imgs.shape))
-            fake_score = discriminator(fake_imgs.detach() + noise_decay(fake_imgs.shape))
+            real_score = discriminator(real_imgs + noise_decay(real_imgs.shape).to(device))
+            fake_score = discriminator(fake_imgs.detach() + noise_decay(fake_imgs.shape).to(device))
 
             gradient_penalty = compute_gradient_penalty(discriminator, real_imgs, fake_imgs.detach(), args.phi)
             loss_dis = -torch.mean(real_score) + torch.mean(fake_score) + gradient_penalty * 10 / (args.phi ** 2)
@@ -136,7 +136,7 @@ for epoch in range(args.epoch):
         if iteration % args.n_critic == 0 and iteration > args.dis_head_start:
             optimizer_gen.zero_grad()
 
-            fake_score = discriminator(fake_imgs + noise_decay(fake_imgs.shape))
+            fake_score = discriminator(fake_imgs + noise_decay(fake_imgs.shape).to(device))
 
             loss_gen = -torch.mean(fake_score)
 
