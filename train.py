@@ -80,6 +80,10 @@ optimizer_dis = optim.Adam(
 lr_decay_gen = LinearLrDecay(optimizer_gen, args.lr_gen, 0.0, args.lr_decay_start_epoch, args.epoch)
 lr_decay_dis = LinearLrDecay(optimizer_dis, args.lr_dis, 0.0, args.lr_decay_start_epoch, args.epoch)
 
+# Noise is added to the discriminator's input.
+# For more information please see https://www.inference.vc/instance-noise-a-trick-for-stabilising-gan-training/
+noise_decay = NormalNoiseDecay(std_start=1, std_end=0, std_start_step=0, std_end_step=args.epoch)
+
 train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download=True, transform=transforms.Compose([
     transforms.Resize(size=(args.img_size, args.img_size)),
     transforms.RandomHorizontalFlip(),
@@ -101,6 +105,9 @@ for epoch in range(args.epoch):
     writer.add_scalar("Generator/LR", lr_gen, epoch)
     writer.add_scalar("Discriminator/LR", lr_dis, epoch)
 
+    # Noise Decay
+    noise_decay.step()
+
     for index, (batch_imgs, _) in enumerate(train_loader):
         loss_dis = None
         loss_gen = None
@@ -113,8 +120,8 @@ for epoch in range(args.epoch):
         if iteration > args.gen_head_start:
             optimizer_dis.zero_grad()
 
-            real_score = discriminator(real_imgs)
-            fake_score = discriminator(fake_imgs.detach())
+            real_score = discriminator(real_imgs + noise_decay(real_imgs.shape))
+            fake_score = discriminator(fake_imgs.detach() + noise_decay(fake_imgs.shape))
 
             gradient_penalty = compute_gradient_penalty(discriminator, real_imgs, fake_imgs.detach(), args.phi)
             loss_dis = -torch.mean(real_score) + torch.mean(fake_score) + gradient_penalty * 10 / (args.phi ** 2)
@@ -129,7 +136,7 @@ for epoch in range(args.epoch):
         if iteration % args.n_critic == 0 and iteration > args.dis_head_start:
             optimizer_gen.zero_grad()
 
-            fake_score = discriminator(fake_imgs)
+            fake_score = discriminator(fake_imgs + noise_decay(fake_imgs.shape))
 
             loss_gen = -torch.mean(fake_score)
 

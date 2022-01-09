@@ -1,4 +1,5 @@
 import os
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -92,6 +93,54 @@ class LinearLrDecay(object):
         return lr
 
 
+class NormalNoiseDecay:
+    def __init__(
+            self,
+            mean_start: float = 0, mean_end: float = 0, mean_start_step: int = 0, mean_end_step: int = 0,
+            std_start: float = 1, std_end: float = 0, std_start_step: int = 0, std_end_step: int = 0,
+    ):
+        super().__init__()
+        assert std_end >= 0
+
+        self.mean_start = mean_start
+        self.mean_end = mean_end
+        self.mean_start_step = mean_start_step
+        self.mean_end_step = mean_end_step
+        self.mean_delta = (mean_start - mean_end) / (mean_end_step - mean_start_step)
+
+        self.std_start = std_start
+        self.std_stop = std_end
+        self.std_start_step = std_start_step
+        self.std_end_step = std_end_step
+        self.std_delta = (std_start - std_end) / (std_end_step - std_start_step)
+
+        self.current_step = 0
+
+    def __call__(self, size: Tuple[int, int]):
+        return torch.randn(size).normal_(mean=self.get_current_mean(), std=self.get_current_std())
+
+    def step(self):
+        self.current_step += 1
+
+    def get_current_mean(self) -> float:
+        if self.current_step <= self.mean_start_step:
+            mean = self.mean_start
+        elif self.current_step >= self.mean_end_step:
+            mean = self.mean_end
+        else:
+            mean = self.mean_start - self.mean_delta * (self.current_step - self.mean_start_step)
+        return mean
+
+    def get_current_std(self) -> float:
+        if self.current_step <= self.std_start_step:
+            std = self.std_start
+        elif self.current_step >= self.std_end_step:
+            std = self.std_stop
+        else:
+            std = self.std_start - self.std_delta * (self.current_step - self.std_start_step)
+        return std
+
+
 class Checkpoint:
     def __init__(self, checkpoint_folder: str, generator, discriminator, optimizer_gen, optimizer_dis):
         self.checkpoint_dir = checkpoint_folder
@@ -161,3 +210,18 @@ class Normalization(nn.Module):
         if hasattr(self, "norm"):
             return self.norm(x)
         return x
+
+
+class NoiseInjection(nn.Module):
+    def __init__(self, mean: int = 0, std: int = 1):
+        super().__init__()
+        self.mean = mean
+        self.std = std
+        self.weight = nn.Parameter(torch.zeros(1))
+
+    def forward(self, image, noise=None):
+        if noise is None:
+            batch, _, height, width = image.shape
+            noise = image.new_empty(batch, 1, height, width).normal_(mean=self.mean, std=self.std)
+
+        return image + self.weight * noise
