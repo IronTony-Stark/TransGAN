@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from diff_aug import DiffAugment
-from utils import up_sampling, Normalization
+from utils import up_sampling_permute, Normalization, up_sampling
 
 
 class MLP(nn.Module):
@@ -94,6 +94,24 @@ class ImgPatches(nn.Module):
         return patches
 
 
+class ToRGB(nn.Module):
+    def __init__(self, in_channel: int):
+        super().__init__()
+
+        self.in_channel = in_channel
+        self.conv = nn.Conv2d(in_channel, 3, 1)
+
+    def forward(self, input: torch.Tensor, H: int, W: int, skip: torch.Tensor = None):
+        input = input.permute(0, 2, 1).view(-1, self.in_channel, H, W)
+
+        out = self.conv(input)
+
+        if skip is not None:
+            out += up_sampling(skip, mode="bilinear")
+
+        return out
+
+
 class Generator(nn.Module):
     def __init__(self, depth1=5, depth2=4, depth3=2, latent_dim=1024, initial_size=8, dim=384, heads=4, mlp_ratio=4,
                  drop_rate=0., norm_type="LN"):
@@ -130,7 +148,9 @@ class Generator(nn.Module):
             norm_type=norm_type
         )
 
-        self.out = nn.Conv2d(self.dim // 16, 3, 1, 1, 0)
+        self.to_rgb1 = ToRGB(self.dim)
+        self.to_rgb2 = ToRGB(self.dim // 4)
+        self.to_rgb3 = ToRGB(self.dim // 16)
 
     def forward(self, noise):
         x = self.mlp(noise).view(-1, self.initial_size ** 2, self.dim)
@@ -138,18 +158,19 @@ class Generator(nn.Module):
         H, W = self.initial_size, self.initial_size
         x = x + self.positional_embedding_1
         x = self.transformer_encoder_1(x)
+        skip = self.to_rgb1(x, H, W)
 
-        x, H, W = up_sampling(x, H, W)
+        x, H, W = up_sampling_permute(x, H, W)
         x = x + self.positional_embedding_2
         x = self.transformer_encoder_2(x)
+        skip = self.to_rgb2(x, H, W, skip)
 
-        x, H, W = up_sampling(x, H, W)
+        x, H, W = up_sampling_permute(x, H, W)
         x = x + self.positional_embedding_3
         x = self.transformer_encoder_3(x)
+        out = self.to_rgb3(x, H, W, skip)
 
-        x = self.out(x.permute(0, 2, 1).view(-1, self.dim // 16, H, W))
-
-        return x
+        return out
 
 
 class Discriminator(nn.Module):

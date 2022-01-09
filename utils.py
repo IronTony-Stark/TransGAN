@@ -6,7 +6,15 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 
 
-def up_sampling(x, H, W, scale_factor=2, mode="pixel_shuffle"):
+def up_sampling(x, scale_factor=2, mode="pixel_shuffle"):
+    if mode == "pixel_shuffle":
+        x = nn.PixelShuffle(scale_factor)(x)
+    else:
+        x = nn.Upsample(scale_factor=scale_factor, mode=mode)(x)
+    return x
+
+
+def up_sampling_permute(x, H, W, scale_factor=2, mode="pixel_shuffle"):
     B, N, C = x.size()
     assert N == H * W
     x = x.permute(0, 2, 1)
