@@ -100,6 +100,7 @@ class ToRGB(nn.Module):
 
         self.in_channel = in_channel
         self.conv = nn.Conv2d(in_channel, 3, 1)
+        self.act = nn.Tanh()
 
     def forward(self, input: torch.Tensor, H: int, W: int, skip: torch.Tensor = None):
         input = input.permute(0, 2, 1).view(-1, self.in_channel, H, W)
@@ -109,7 +110,7 @@ class ToRGB(nn.Module):
         if skip is not None:
             out += up_sampling(skip, mode="bilinear")
 
-        return out
+        return self.act(out)
 
 
 class Generator(nn.Module):
@@ -128,7 +129,7 @@ class Generator(nn.Module):
 
         self.mlp = nn.Linear(latent_dim, (self.initial_size ** 2) * self.dim)
 
-        self.positional_embedding_1 = nn.Parameter(torch.zeros(1, (8 ** 2), 384))
+        self.positional_embedding_1 = nn.Parameter(torch.zeros(1, (8 * 1) ** 2, 384 // 1))
         self.positional_embedding_2 = nn.Parameter(torch.zeros(1, (8 * 2) ** 2, 384 // 4))
         self.positional_embedding_3 = nn.Parameter(torch.zeros(1, (8 * 4) ** 2, 384 // 16))
 
