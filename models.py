@@ -204,10 +204,10 @@ class Discriminator(nn.Module):
         self.out = nn.Linear(dim, num_classes)
 
     def forward(self, x):
-        x = DiffAugment(x, self.diff_aug)
         b = x.shape[0]
         cls_token = self.class_embedding.expand(b, -1, -1)
 
+        x = DiffAugment(x, self.diff_aug)
         x = self.patches(x)
         x = torch.cat((cls_token, x), dim=1)
         x += self.positional_embedding
