@@ -106,13 +106,15 @@ class NormalNoiseDecay:
         self.mean_end = mean_end
         self.mean_start_step = mean_start_step
         self.mean_end_step = mean_end_step
-        self.mean_delta = (mean_start - mean_end) / (mean_end_step - mean_start_step)
+        self.mean_delta = 0 if mean_end_step - mean_start_step == 0 \
+            else (mean_start - mean_end) / (mean_end_step - mean_start_step)
 
         self.std_start = std_start
         self.std_stop = std_end
         self.std_start_step = std_start_step
         self.std_end_step = std_end_step
-        self.std_delta = (std_start - std_end) / (std_end_step - std_start_step)
+        self.std_delta = 0 if std_end_step - std_start_step == 0 \
+            else (std_start - std_end) / (std_end_step - std_start_step)
 
         self.current_step = 0
 
