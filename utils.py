@@ -93,6 +93,13 @@ class LinearLrDecay(object):
         return lr
 
 
+# Noise is added to the discriminator's input.
+# For more information please see https://www.inference.vc/instance-noise-a-trick-for-stabilising-gan-training/
+# Input noise didn't improve results, so it was removed
+# Usage example:
+# def add_noise(input: torch.Tensor, noise: torch.Tensor):
+#     return torch.clamp_(input + noise, -1, 1)
+# add_noise(real_imgs, noise_decay(real_imgs.shape).to(device))
 class NormalNoiseDecay:
     def __init__(
             self,
