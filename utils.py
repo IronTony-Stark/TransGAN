@@ -203,6 +203,16 @@ class PixelNorm(nn.Module):
         return input / torch.sqrt(torch.mean(input ** 2, dim=1, keepdim=True) + 1e-8)
 
 
+class CustomLayerNorm(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    def forward(input):
+        demodulation = torch.sqrt(torch.sum(input ** 2, dim=-1, keepdim=True) + 1e-8)
+        return input / demodulation
+
+
 class Normalization(nn.Module):
     def __init__(self, type: str = "", dim: int = None):
         super().__init__()
@@ -214,6 +224,8 @@ class Normalization(nn.Module):
             self.norm = nn.InstanceNorm1d(dim)
         elif type == "PN":
             self.norm = PixelNorm()
+        elif type == "CLN":
+            self.norm = CustomLayerNorm()
 
     def forward(self, x):
         if hasattr(self, "norm"):

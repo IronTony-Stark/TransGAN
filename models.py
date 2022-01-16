@@ -1,14 +1,27 @@
+import typing
+
 import torch
 import torch.nn as nn
 
 from diff_aug import DiffAugment
+from tmp import MultiHeadAttention
 from utils import up_sampling_permute, Normalization, up_sampling
 
 
-class MLP(nn.Module):
-    def __init__(self, in_feat, hid_feat=None, out_feat=None,
-                 dropout=0.):
+class ConstantInput(nn.Module):
+    def __init__(self, shape: typing.Tuple):
         super().__init__()
+
+        self.input = nn.Parameter(torch.randn(*shape))
+
+    def forward(self, batch_size: int):
+        return self.input.repeat(batch_size, 1, 1, 1)
+
+
+class MLP(nn.Module):
+    def __init__(self, in_feat, hid_feat=None, out_feat=None, dropout=0.):
+        super().__init__()
+
         if not hid_feat:
             hid_feat = in_feat
         if not out_feat:
@@ -28,6 +41,7 @@ class MLP(nn.Module):
 class Attention(nn.Module):
     def __init__(self, dim, heads=4, attention_dropout=0., proj_dropout=0.):
         super().__init__()
+
         self.heads = heads
         self.scale = 1. / dim ** 0.5
 
@@ -55,6 +69,7 @@ class Attention(nn.Module):
 class EncoderBlock(nn.Module):
     def __init__(self, dim, heads, mlp_ratio=4, drop_rate=0., normalization_type="LN"):
         super().__init__()
+
         self.norm1 = Normalization(normalization_type, dim)
         self.attn = Attention(dim, heads, drop_rate, drop_rate)
         self.norm2 = Normalization(normalization_type, dim)
@@ -71,6 +86,7 @@ class EncoderBlock(nn.Module):
 class TransformerEncoder(nn.Module):
     def __init__(self, depth, dim, heads, mlp_ratio=4, drop_rate=0., norm_type="LN"):
         super().__init__()
+
         self.encoder_blocks = nn.ModuleList([
             EncoderBlock(dim, heads, mlp_ratio, drop_rate, norm_type)
             for _ in range(depth)
@@ -92,6 +108,60 @@ class ImgPatches(nn.Module):
     def forward(self, img):
         patches = self.patch_embed(img).flatten(2).transpose(1, 2)
         return patches
+
+
+class MappingNetwork(nn.Module):
+    def __init__(self, style_dim=512, style_num=16, mlp_layers_num=8):
+        super().__init__()
+
+        layers = []  # PixelNorm()
+        for _ in range(mlp_layers_num):
+            layers.append(nn.Linear(style_dim, style_dim))
+            layers.append(nn.GELU())
+        layers.append(nn.Linear(style_dim, style_num * style_dim))
+        layers.append(nn.GELU())
+
+        self.style_dim = style_dim
+        self.style_num = style_num
+        self.style = nn.Sequential(*layers)
+
+    def forward(self, z):
+        return self.style(z).view(-1, self.style_num, self.style_dim)
+
+
+class StyleModulation(nn.Module):
+    def __init__(self, in_size, style_dim):
+        super().__init__()
+
+        ires, in_channel, self.ipsize, style_num = in_size
+
+        self.norm = Normalization("CLN")  # Custom Layer Norm
+        self.keys = nn.Parameter(nn.init.orthogonal_(torch.empty(1, style_num, in_channel)))
+        self.pos = nn.Parameter(torch.zeros(1, (ires // self.ipsize) ** 2, in_channel))
+        self.attention = MultiHeadAttention(in_channel, in_channel, in_channel, style_dim)
+
+    def forward(self, input, style, is_new_style=False):
+        b, t, c = input.size()
+
+        # remove old style
+        input = self.norm(input)
+        input = input.view(b, t, -1, self.ipsize, self.ipsize)
+
+        # calculate new style
+        if not is_new_style:
+            # multi-head attention
+            query = torch.mean(input, dim=[3, 4])
+            keys = self.keys.repeat(input.size(0), 1, 1)
+            pos = self.pos.repeat(input.size(0), 1, 1)
+            new_style, _ = self.attention(q=query + pos, k=keys, v=style)
+        else:
+            new_style = style
+
+        # append new style
+        out = input * new_style.unsqueeze(-1).unsqueeze(-1)
+
+        out = out.view(b, t, c)
+        return out, (new_style.detach(),)
 
 
 class ToRGB(nn.Module):
