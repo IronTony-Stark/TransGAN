@@ -1,8 +1,10 @@
 import typing
+import random
 
 import torch
 import torch.nn as nn
 
+from configs import GenConfig, TransConfig
 from diff_aug import DiffAugment
 from tmp import MultiHeadAttention
 from utils import up_sampling_permute, Normalization, up_sampling
@@ -12,10 +14,11 @@ class ConstantInput(nn.Module):
     def __init__(self, shape: typing.Tuple):
         super().__init__()
 
-        self.input = nn.Parameter(torch.randn(*shape))
+        self.shape = shape
+        self.input = nn.Parameter(torch.randn(1, *shape))
 
     def forward(self, batch_size: int):
-        return self.input.repeat(batch_size, 1, 1, 1)
+        return self.input.repeat(batch_size, *(len(self.shape) * [1]))
 
 
 class MLP(nn.Module):
@@ -130,38 +133,30 @@ class MappingNetwork(nn.Module):
 
 
 class StyleModulation(nn.Module):
-    def __init__(self, in_size, style_dim):
+    def __init__(self, size: int, content_dim: int, style_num: int, style_dim: int, patch_size: int):
         super().__init__()
 
-        ires, in_channel, self.ipsize, style_num = in_size
+        self.size, self.content_dim, self.style_num, self.style_dim, self.patch_size \
+            = size, content_dim, style_num, style_dim, patch_size
 
         self.norm = Normalization("CLN")  # Custom Layer Norm
-        self.keys = nn.Parameter(nn.init.orthogonal_(torch.empty(1, style_num, in_channel)))
-        self.pos = nn.Parameter(torch.zeros(1, (ires // self.ipsize) ** 2, in_channel))
-        self.attention = MultiHeadAttention(in_channel, in_channel, in_channel, style_dim)
+        self.keys = nn.Parameter(nn.init.orthogonal_(torch.empty(1, style_num, content_dim)))
+        self.pos = nn.Parameter(torch.zeros(1, (size // patch_size) ** 2, content_dim))
+        self.attention = MultiHeadAttention(content_dim, content_dim, content_dim, style_dim)
 
-    def forward(self, input, style, is_new_style=False):
-        b, t, c = input.size()
+    def forward(self, input, style):
+        batch_size, content_num, _ = input.size()
 
         # remove old style
         input = self.norm(input)
-        input = input.view(b, t, -1, self.ipsize, self.ipsize)
 
         # calculate new style
-        if not is_new_style:
-            # multi-head attention
-            query = torch.mean(input, dim=[3, 4])
-            keys = self.keys.repeat(input.size(0), 1, 1)
-            pos = self.pos.repeat(input.size(0), 1, 1)
-            new_style, _ = self.attention(q=query + pos, k=keys, v=style)
-        else:
-            new_style = style
+        query = torch.mean(input.view(batch_size, content_num, -1, self.patch_size, self.patch_size), dim=[3, 4])
+        keys = self.keys.repeat(input.size(0), 1, 1)
+        new_style, _ = self.attention(q=query + self.pos, k=keys, v=style)
 
-        # append new style
-        out = input * new_style.unsqueeze(-1).unsqueeze(-1)
-
-        out = out.view(b, t, c)
-        return out, (new_style.detach(),)
+        # add new style
+        return input * new_style
 
 
 class ToRGB(nn.Module):
@@ -184,64 +179,101 @@ class ToRGB(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, depth1=5, depth2=4, depth3=2, latent_dim=1024, initial_size=8, dim=384, heads=4, mlp_ratio=4,
-                 drop_rate=0., norm_type="LN"):
+    def __init__(self, img_size=32, style_num=32, style_dim=512, mlp_layers_num=8, trans_configs=None):
         super().__init__()
 
-        self.initial_size = initial_size
-        self.dim = dim
-        self.depth1 = depth1
-        self.depth2 = depth2
-        self.depth3 = depth3
-        self.heads = heads
-        self.mlp_ratio = mlp_ratio
-        self.drop_rate = drop_rate
+        self.img_size, self.style_num, self.style_dim, self.mlp_layers_num \
+            = img_size, style_num, style_dim, mlp_layers_num
 
-        self.mlp = nn.Linear(latent_dim, (self.initial_size ** 2) * self.dim)
+        if trans_configs is None:
+            trans_configs = [
+                TransConfig(depth=5),
+                TransConfig(depth=4),
+                TransConfig(depth=3),
+                TransConfig(depth=3),
+                TransConfig(depth=3),
+                TransConfig(depth=2),
+                TransConfig(depth=2),
+                TransConfig(depth=2),
+            ]
 
-        self.positional_embedding_1 = nn.Parameter(torch.zeros(1, (8 * 1) ** 2, 384 // 1))
-        self.positional_embedding_2 = nn.Parameter(torch.zeros(1, (8 * 2) ** 2, 384 // 4))
-        self.positional_embedding_3 = nn.Parameter(torch.zeros(1, (8 * 4) ** 2, 384 // 16))
+        self.configs = [
+            GenConfig(8, 512, style_num, 1),
+            GenConfig(16, 512, style_num, 1),
+            GenConfig(32, 512, style_num, 1),
+            GenConfig(64, 256, style_num, 1),
+            GenConfig(128, 256, style_num, 2),
+            GenConfig(256, 128, style_num, 2),
+            GenConfig(512, 64, style_num, 4),
+            GenConfig(1024, 32, style_num, 4),
+        ]
 
-        self.transformer_encoder_1 = TransformerEncoder(
-            depth=self.depth1, dim=self.dim, heads=self.heads,
-            mlp_ratio=self.mlp_ratio, drop_rate=self.drop_rate,
-            norm_type=norm_type
-        )
-        self.transformer_encoder_2 = TransformerEncoder(
-            depth=self.depth2, dim=self.dim // 4, heads=self.heads,
-            mlp_ratio=self.mlp_ratio, drop_rate=self.drop_rate,
-            norm_type=norm_type
-        )
-        self.transformer_encoder_3 = TransformerEncoder(
-            depth=self.depth3, dim=self.dim // 16, heads=self.heads,
-            mlp_ratio=self.mlp_ratio, drop_rate=self.drop_rate,
-            norm_type=norm_type
-        )
+        self.num_blocks = next(i for i, config in enumerate(self.configs) if config.size == img_size) + 1
 
-        self.to_rgb1 = ToRGB(self.dim)
-        self.to_rgb2 = ToRGB(self.dim // 4)
-        self.to_rgb3 = ToRGB(self.dim // 16)
+        self.mapping_network = MappingNetwork(style_dim=style_dim, style_num=style_num, mlp_layers_num=mlp_layers_num)
 
-    def forward(self, noise):
-        x = self.mlp(noise).view(-1, self.initial_size ** 2, self.dim)
+        self.constant_input = ConstantInput((self.configs[0].size ** 2, self.configs[0].content_dim))
 
-        H, W = self.initial_size, self.initial_size
-        x = x + self.positional_embedding_1
-        x = self.transformer_encoder_1(x)
-        skip = self.to_rgb1(x, H, W)
+        self.style_modulations = nn.ModuleList()
+        self.positional_embeddings = nn.ParameterList()
+        self.transformer_encoders = nn.ModuleList()
+        self.to_RGBs = nn.ModuleList()
+        for i in range(self.num_blocks):
+            size, content_dim, style_num, patch_size = self.configs[i].get()
+            depth, heads, mlp_ratio, drop_rate, norm_type = trans_configs[i].get()
 
-        x, H, W = up_sampling_permute(x, H, W)
-        x = x + self.positional_embedding_2
-        x = self.transformer_encoder_2(x)
-        skip = self.to_rgb2(x, H, W, skip)
+            self.style_modulations.append(StyleModulation(size, content_dim, style_num, style_dim, patch_size))
+            self.positional_embeddings.append(nn.Parameter(torch.zeros(1, size ** 2, content_dim)))
+            self.transformer_encoders.append(TransformerEncoder(
+                depth, content_dim, heads, mlp_ratio, drop_rate, norm_type
+            ))
+            self.to_RGBs.append(ToRGB(content_dim))
 
-        x, H, W = up_sampling_permute(x, H, W)
-        x = x + self.positional_embedding_3
-        x = self.transformer_encoder_3(x)
-        out = self.to_rgb3(x, H, W, skip)
+    def forward(self, input):
+        assert len(input) == 1 or len(input) == 2
 
-        return out
+        input = [self.mapping_network(i) for i in input]
+
+        # todo truncation
+
+        if len(input) == 1:
+            styles = input[0]
+            if styles.ndim == 3:
+                # (batch, style_num, style_dim) -> (layer, batch, style_num, style_dim)
+                styles = styles.unsqueeze(0).repeat(self.num_blocks, 1, 1, 1)
+        else:
+            kv_index = random.randint(1, self.style_num - 1), random.randint(1, self.style_num - 1)
+            styles1 = torch.cat([input[0][:, :kv_index[0], :], input[1][:, kv_index[0]:, :]], dim=1)
+            styles2 = torch.cat([input[1][:, :kv_index[1], :], input[0][:, kv_index[1]:, :]], dim=1)
+
+            inject_index = random.randint(1, self.num_blocks - 1)
+            styles1 = styles1.unsqueeze(0).repeat(inject_index, 1, 1, 1)
+            styles2 = styles2.unsqueeze(0).repeat(self.num_blocks - inject_index, 1, 1, 1)
+
+            styles = torch.cat([styles1, styles2], dim=0)
+
+        x = self.constant_input(styles.size(1))
+
+        i = 0
+        skip = None
+        for style_modulation, positional_embedding, transformer_encoder, to_rgb in zip(
+                self.style_modulations, self.positional_embeddings,
+                self.transformer_encoders, self.to_RGBs
+        ):
+            size = self.configs[i].size
+
+            if i != 0:
+                current_size = self.configs[i - 1].size
+                x, _, _ = up_sampling_permute(x, current_size, current_size, mode="bilinear")
+
+            x = style_modulation(x, styles[i])
+            x = x + positional_embedding
+            x = transformer_encoder(x)
+            skip = to_rgb(x, size, size, skip)
+
+            i += 1
+
+        return skip
 
 
 class Discriminator(nn.Module):

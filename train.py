@@ -24,6 +24,7 @@ parser.add_argument("--beta2", type=float, default=0.99, help="beta2")
 parser.add_argument("--phi", type=int, default=1, help="phi")
 parser.add_argument("--patch_size", type=int, default=4, help="Patch size for discriminator.")
 parser.add_argument("--initial_size", type=int, default=8, help="Initial size for generator.")
+parser.add_argument("--mixing_prob", type=float, default=0.9, help="Probability of latent mixing.")
 parser.add_argument("--latent_dim", type=int, default=1024, help="Latent dimension of generator's input.")
 parser.add_argument("--diff_aug", type=str, default="color,translation,cutout", help="Data Augmentation")
 parser.add_argument("--log_dir", type=str, default=None, help="Tensorboard log directory")
@@ -49,11 +50,7 @@ args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-generator = Generator(
-    depth1=5, depth2=4, depth3=2,
-    initial_size=args.initial_size, dim=384, heads=4,
-    mlp_ratio=4, drop_rate=0.5
-)
+generator = Generator(style_dim=args.latent_dim)
 discriminator = Discriminator(
     diff_aug=args.diff_aug, image_size=32, patch_size=args.patch_size, input_channel=3,
     num_classes=1, dim=384, depth=7, heads=4,
@@ -106,7 +103,7 @@ for epoch in range(args.epoch):
         loss_dis = None
         loss_gen = None
 
-        noise = gen_noise(batch_imgs.shape[0], args.latent_dim).to(device)
+        noise = gen_mixing_noise(batch_imgs.shape[0], args.latent_dim, args.mixing_prob, device)
         real_imgs = batch_imgs.to(device)
         fake_imgs = generator(noise)
 
@@ -125,9 +122,8 @@ for epoch in range(args.epoch):
             optimizer_dis.step()
 
             writer.add_scalar("Discriminator/Loss", loss_dis.item(), iteration)
-
-            writer.add_scalar("Discriminator/Loss", -torch.mean(real_score).item(), iteration)
-            writer.add_scalar("Discriminator/Loss", torch.mean(fake_score).item(), iteration)
+            writer.add_scalar("Discriminator/Real Score", -torch.mean(real_score).item(), iteration)
+            writer.add_scalar("Discriminator/Fake Score", torch.mean(fake_score).item(), iteration)
 
         # Update Generator
         if iteration % args.n_critic == 0 and iteration > args.dis_head_start:
@@ -142,6 +138,7 @@ for epoch in range(args.epoch):
             optimizer_gen.step()
 
             writer.add_scalar("Generator/Loss", loss_gen.item(), iteration)
+            writer.add_scalar("Generator/Score", -torch.mean(fake_score).item(), iteration)
 
         # Logging
         if iteration % 100 == 0:

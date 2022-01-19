@@ -1,4 +1,5 @@
 import os
+import random
 from typing import Tuple
 
 import numpy as np
@@ -23,7 +24,7 @@ def up_sampling_permute(x, H, W, scale_factor=2, mode="pixel_shuffle"):
     if mode == "pixel_shuffle":
         x = nn.PixelShuffle(scale_factor)(x)
     else:
-        x = nn.Upsample(scale_factor, mode)
+        x = nn.Upsample(scale_factor=scale_factor, mode=mode)(x)
     B, C, H, W = x.size()
     x = x.view(-1, C, H * W)
     x = x.permute(0, 2, 1)
@@ -67,8 +68,17 @@ def compute_gradient_penalty(D, real_samples, fake_samples, phi):
     return gradient_penalty
 
 
-def gen_noise(batch_size: int, dim: int):
-    return torch.FloatTensor(np.random.normal(0, 1, (batch_size, dim)))
+def gen_noise(batch_size, latent_dim, noise_num, device):
+    if noise_num == 1:
+        return torch.randn(batch_size, latent_dim, device=device)
+    return torch.randn(noise_num, batch_size, latent_dim, device=device).unbind(0)
+
+
+def gen_mixing_noise(batch_size, latent_dim, probability, device):
+    if probability > 0 and random.random() < probability:
+        return gen_noise(batch_size, latent_dim, 2, device)
+    else:
+        return [gen_noise(batch_size, latent_dim, 1, device)]
 
 
 class LinearLrDecay(object):
@@ -209,8 +219,8 @@ class CustomLayerNorm(nn.Module):
 
     @staticmethod
     def forward(input):
-        demodulation = torch.sqrt(torch.sum(input ** 2, dim=-1, keepdim=True) + 1e-8)
-        return input / demodulation
+        input -= torch.mean(input, dim=-1, keepdim=True)
+        return input / torch.sqrt(torch.sum(input ** 2, dim=-1, keepdim=True) + 1e-8)
 
 
 class Normalization(nn.Module):
