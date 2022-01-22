@@ -109,6 +109,9 @@ for epoch in range(args.epoch):
 
         # Update Discriminator
         if iteration > args.gen_head_start:
+            requires_grad(generator, False)
+            requires_grad(discriminator, True)
+
             optimizer_dis.zero_grad()
 
             real_score = discriminator(real_imgs)
@@ -127,6 +130,9 @@ for epoch in range(args.epoch):
 
         # Update Generator
         if iteration % args.n_critic == 0 and iteration > args.dis_head_start:
+            requires_grad(generator, True)
+            requires_grad(discriminator, False)
+
             optimizer_gen.zero_grad()
 
             fake_score = discriminator(fake_imgs)
@@ -138,7 +144,6 @@ for epoch in range(args.epoch):
             optimizer_gen.step()
 
             writer.add_scalar("Generator/Loss", loss_gen.item(), iteration)
-            writer.add_scalar("Generator/Score", -torch.mean(fake_score).item(), iteration)
 
         # Logging
         if iteration % 100 == 0:

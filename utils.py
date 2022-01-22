@@ -46,6 +46,11 @@ def inits_weight(m):
         nn.init.constant_(m.weight.data, 1.0)
 
 
+def requires_grad(model, flag=True):
+    for p in model.parameters():
+        p.requires_grad = flag
+
+
 def compute_gradient_penalty(D, real_samples, fake_samples, phi):
     """Calculates the gradient penalty loss for WGAN GP"""
     # Random weight term for interpolation between real and fake samples
