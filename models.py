@@ -266,7 +266,7 @@ class Generator(nn.Module):
                 current_size = self.configs[i - 1].size
                 x, _, _ = up_sampling_permute(x, current_size, current_size, mode="bilinear")
 
-            x = style_modulation(x, styles[i])
+            # x = style_modulation(x, styles[i])
             x = x + positional_embedding
             x = transformer_encoder(x)
             skip = to_rgb(x, size, size, skip)
