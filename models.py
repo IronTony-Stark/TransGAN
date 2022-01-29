@@ -236,7 +236,8 @@ class ToRGB(nn.Module):
         if skip is not None:
             out += up_sampling(skip, mode="bilinear")
 
-        return self.act(out)
+        # return self.act(out)
+        return out
 
 
 class Generator(nn.Module):

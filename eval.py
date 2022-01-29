@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import torch
 import torchvision.utils as vutils
 from pytorch_gan_metrics import get_inception_score_and_fid
 from torch.utils.data import DataLoader
@@ -6,10 +7,29 @@ from torch.utils.data import DataLoader
 from models import *
 from utils import *
 
+torch.manual_seed(0)
+
+
+def normalize(tensor: torch.Tensor) -> torch.Tensor:
+    tensor = tensor.clone()  # avoid modifying tensor in-place
+
+    def norm_ip(img, low, high):
+        img.clamp_(min=low, max=high)
+        img.sub_(low).div_(max(high - low, 1e-5))
+
+    def norm_range(t):
+        norm_ip(t, float(t.min()), float(t.max()))
+
+    for t in tensor:  # loop over mini-batch dimension
+        norm_range(t)
+
+    return tensor
+
 
 def show_images(loader: DataLoader):
     batch = next(iter(loader))
-    grid = vutils.make_grid(batch, padding=2, normalize=True, scale_each=True)
+    batch = normalize(batch)
+    grid = vutils.make_grid(batch, padding=2, normalize=False, scale_each=False)
     batch_size = batch.size(0)
 
     plt.figure(figsize=(batch_size ** 0.5, batch_size ** 0.5))
