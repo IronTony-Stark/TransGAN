@@ -105,7 +105,7 @@ class TransformerEncoder(nn.Module):
 class ImgPatches(nn.Module):
     def __init__(self, input_channel=3, dim=768, patch_size=4):
         super().__init__()
-        self.patch_embed = nn.Conv2d(
+        self.patch_embed = EqConv2d(
             input_channel, dim, kernel_size=patch_size, stride=patch_size
         )
 
@@ -236,8 +236,7 @@ class ToRGB(nn.Module):
         if skip is not None:
             out += up_sampling(skip, mode="bilinear")
 
-        # return self.act(out)
-        return out
+        return self.act(out)
 
 
 class Generator(nn.Module):
@@ -365,7 +364,7 @@ class Discriminator(nn.Module):
             norm_type=norm_type
         )
         self.norm = Normalization(norm_type, dim)
-        self.out = nn.Linear(dim, num_classes)
+        self.out = EqLinear(dim, num_classes)
 
     def forward(self, x):
         b = x.shape[0]
