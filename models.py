@@ -8,6 +8,7 @@ from configs import GenConfig, TransConfig
 from diff_aug import DiffAugment
 from tmp import MultiHeadAttention
 from utils import up_sampling_permute, Normalization, up_sampling
+from equalized_lr import *
 
 
 class ConstantInput(nn.Module):
@@ -119,10 +120,10 @@ class MappingNetwork(nn.Module):
 
         layers = []  # PixelNorm()
         for _ in range(mlp_layers_num):
-            layers.append(nn.Linear(style_dim, style_dim))
-            layers.append(nn.GELU())
-        layers.append(nn.Linear(style_dim, style_num * style_dim))
-        layers.append(nn.GELU())
+            layers.append(EqLinear(style_dim, style_dim))
+            layers.append(nn.LeakyReLU(negative_slope=0.2))
+        layers.append(EqLinear(style_dim, style_num * style_dim))
+        layers.append(nn.LeakyReLU(negative_slope=0.2))
 
         self.style_dim = style_dim
         self.style_num = style_num

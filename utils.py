@@ -205,7 +205,7 @@ class GeneratorDataset(Dataset):
 
     @torch.no_grad()
     def __getitem__(self, index):
-        return self.G(gen_noise(1, self.latent_dim).to(self.device))[0]
+        return self.G([gen_noise(1, self.latent_dim, 1, self.device)])[0]
 
 
 # Pixelwise feature vector normalization introduced in Progressive GAN https://arxiv.org/abs/1710.10196

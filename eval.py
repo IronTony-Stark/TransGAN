@@ -3,7 +3,7 @@ import torchvision.utils as vutils
 from pytorch_gan_metrics import get_inception_score_and_fid
 from torch.utils.data import DataLoader
 
-from models_original import *
+from models import *
 from utils import *
 
 
@@ -33,16 +33,12 @@ num_images_in_row = 8
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-generator = Generator(
-    depth1=5, depth2=4, depth3=2,
-    initial_size=8, dim=384, heads=4,
-    mlp_ratio=4, drop_rate=0.5
-)
+generator = Generator(style_dim=1024)
 generator.eval()
 
-generator.load_state_dict(
-    torch.load("./model_pretrained.pth", map_location=torch.device('cpu'))["generator_state_dict"]
-)
+# generator.load_state_dict(
+#     torch.load("./model_pretrained.pth", map_location=torch.device('cpu'))["generator_state_dict"]
+# )
 
 gen_dataset = GeneratorDataset(generator, 1024, 5000, device=device)
 gen_loader = DataLoader(gen_dataset, batch_size=num_images_in_row ** 2, num_workers=0)

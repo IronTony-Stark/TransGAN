@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from equalized_lr import EqLinear
 
 
 # todo remove
@@ -8,9 +9,9 @@ class MultiHeadAttention(nn.Module):
         super(MultiHeadAttention, self).__init__()
 
         self.scale = embed_dim ** -0.5
-        self.to_q = nn.Linear(qdim, embed_dim, bias=False)
-        self.to_k = nn.Linear(kdim, embed_dim, bias=False)
-        self.to_v = nn.Linear(vdim, embed_dim, bias=False)
+        self.to_q = EqLinear(qdim, embed_dim, bias=False)
+        self.to_k = EqLinear(kdim, embed_dim, bias=False)
+        self.to_v = EqLinear(vdim, embed_dim, bias=False)
 
     def forward(self, q, k, v):
         b, n, dim = q.size()
