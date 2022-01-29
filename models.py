@@ -7,7 +7,7 @@ import torch.nn as nn
 from configs import GenConfig, TransConfig
 from diff_aug import DiffAugment
 from tmp import MultiHeadAttention
-from utils import up_sampling_permute, Normalization, up_sampling
+from utils import up_sampling_permute, Normalization, up_sampling, PixelNorm
 from equalized_lr import *
 
 
@@ -30,9 +30,9 @@ class MLP(nn.Module):
             hid_feat = in_feat
         if not out_feat:
             out_feat = in_feat
-        self.fc1 = nn.Linear(in_feat, hid_feat)
-        self.act = nn.GELU()
-        self.fc2 = nn.Linear(hid_feat, out_feat)
+        self.fc1 = EqLinear(in_feat, hid_feat)
+        self.act = nn.LeakyReLU(negative_slope=0.2)
+        self.fc2 = EqLinear(hid_feat, out_feat)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
@@ -49,10 +49,10 @@ class Attention(nn.Module):
         self.heads = heads
         self.scale = 1. / dim ** 0.5
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=False)
+        self.qkv = EqLinear(dim, dim * 3, bias=False)
         self.attention_dropout = nn.Dropout(attention_dropout)
         self.out = nn.Sequential(
-            nn.Linear(dim, dim),
+            EqLinear(dim, dim),
             nn.Dropout(proj_dropout)
         )
 
@@ -118,7 +118,7 @@ class MappingNetwork(nn.Module):
     def __init__(self, style_dim=512, style_num=16, mlp_layers_num=8):
         super().__init__()
 
-        layers = []  # PixelNorm()
+        layers = [PixelNorm()]
         for _ in range(mlp_layers_num):
             layers.append(EqLinear(style_dim, style_dim))
             layers.append(nn.LeakyReLU(negative_slope=0.2))
@@ -225,7 +225,7 @@ class ToRGB(nn.Module):
         super().__init__()
 
         self.in_channel = in_channel
-        self.conv = nn.Conv2d(in_channel, 3, 1)
+        self.conv = EqConv2d(in_channel, 3, 1)
         self.act = nn.Tanh()
 
     def forward(self, input: torch.Tensor, H: int, W: int, skip: torch.Tensor = None):
