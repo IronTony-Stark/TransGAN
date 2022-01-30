@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from models import *
 from utils import *
 
-torch.manual_seed(0)
+# torch.manual_seed(0)
 
 
 def normalize(tensor: torch.Tensor) -> torch.Tensor:
