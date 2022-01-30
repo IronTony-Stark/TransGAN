@@ -209,6 +209,7 @@ class Generator(nn.Module):
         self.style_modulations = nn.ModuleList()
         self.positional_embeddings = nn.ParameterList()
         self.transformer_encoders = nn.ModuleList()
+        self.norms = nn.ModuleList()
         self.to_RGBs = nn.ModuleList()
         for i in range(self.num_blocks):
             size, content_dim, style_num, patch_size = self.configs[i].get()
@@ -219,6 +220,7 @@ class Generator(nn.Module):
             self.transformer_encoders.append(TransformerEncoder(
                 depth, content_dim, heads, mlp_ratio, drop_rate, norm_type
             ))
+            self.norms.append(Normalization("LN", content_dim))
             self.to_RGBs.append(ToRGB(content_dim))
 
     def forward(self, input):
@@ -248,9 +250,9 @@ class Generator(nn.Module):
 
         i = 0
         skip = None
-        for style_modulation, positional_embedding, transformer_encoder, to_rgb in zip(
+        for style_modulation, positional_embedding, transformer_encoder, norm, to_rgb in zip(
                 self.style_modulations, self.positional_embeddings,
-                self.transformer_encoders, self.to_RGBs
+                self.transformer_encoders, self.norms, self.to_RGBs
         ):
             size = self.configs[i].size
 
@@ -261,6 +263,7 @@ class Generator(nn.Module):
             x, _ = style_modulation(x, styles[i])
             x = x + positional_embedding
             x = transformer_encoder(x)
+            x = norm(x)
             skip = to_rgb(x, size, size, skip)
 
             i += 1
