@@ -123,7 +123,7 @@ for epoch in range(args.epoch):
 
             loss_dis.backward()
 
-            optimizer_dis.step()
+            # optimizer_dis.step()
 
             writer.add_scalar("Discriminator/Loss", loss_dis.item(), iteration)
             writer.add_scalar("Discriminator/Real Score", -torch.mean(real_score).item(), iteration)
