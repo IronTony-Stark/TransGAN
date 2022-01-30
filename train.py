@@ -54,7 +54,7 @@ generator = Generator(style_dim=args.latent_dim)
 discriminator = Discriminator(
     diff_aug=args.diff_aug, image_size=32, patch_size=args.patch_size, input_channel=3,
     num_classes=1, dim=384, depth=7, heads=4,
-    mlp_ratio=4, drop_rate=0.
+    mlp_ratio=4, drop_rate=0.7
 )
 
 generator.apply(inits_weight)
