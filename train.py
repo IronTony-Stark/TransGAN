@@ -78,11 +78,12 @@ optimizer_dis = optim.Adam(
 lr_decay_gen = LinearLrDecay(optimizer_gen, args.lr_gen, 0.0, args.lr_decay_start_epoch, args.epoch)
 lr_decay_dis = LinearLrDecay(optimizer_dis, args.lr_dis, 0.0, args.lr_decay_start_epoch, args.epoch)
 
+normalization = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download=True, transform=transforms.Compose([
     transforms.Resize(size=(args.img_size, args.img_size)),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    normalization,
 ]))
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
 
@@ -105,7 +106,7 @@ for epoch in range(args.epoch):
 
         noise = gen_mixing_noise(batch_imgs.shape[0], args.latent_dim, args.mixing_prob, device)
         real_imgs = batch_imgs.to(device)
-        fake_imgs = generator(noise)
+        fake_imgs = normalization(pixel_normalization(generator(noise)))
 
         # Update Discriminator
         if iteration > args.gen_head_start:
@@ -122,7 +123,7 @@ for epoch in range(args.epoch):
 
             loss_dis.backward()
 
-            # optimizer_dis.step()
+            optimizer_dis.step()
 
             writer.add_scalar("Discriminator/Loss", loss_dis.item(), iteration)
             writer.add_scalar("Discriminator/Real Score", -torch.mean(real_score).item(), iteration)

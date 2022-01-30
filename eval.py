@@ -10,25 +10,8 @@ from utils import *
 # torch.manual_seed(0)
 
 
-def normalize(tensor: torch.Tensor) -> torch.Tensor:
-    tensor = tensor.clone()  # avoid modifying tensor in-place
-
-    def norm_ip(img, low, high):
-        img.clamp_(min=low, max=high)
-        img.sub_(low).div_(max(high - low, 1e-5))
-
-    def norm_range(t):
-        norm_ip(t, float(t.min()), float(t.max()))
-
-    for t in tensor:  # loop over mini-batch dimension
-        norm_range(t)
-
-    return tensor
-
-
 def show_images(loader: DataLoader):
-    batch = next(iter(loader))
-    batch = normalize(batch)
+    batch = pixel_normalization(next(iter(loader)))
     grid = vutils.make_grid(batch, padding=2, normalize=False, scale_each=False)
     batch_size = batch.size(0)
 

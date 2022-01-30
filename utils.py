@@ -86,6 +86,19 @@ def gen_mixing_noise(batch_size, latent_dim, probability, device):
         return [gen_noise(batch_size, latent_dim, 1, device)]
 
 
+# Normalizes tensor so that values become [0, 1]
+def pixel_normalization(tensor: torch.Tensor) -> torch.Tensor:
+    tensor = tensor.clone()  # avoid modifying tensor in-place
+
+    for t in tensor:  # loop over mini-batch dimension
+        low = float(t.min())
+        high = float(t.max())
+        t.clamp_(min=low, max=high)
+        t.sub_(low).div_(max(high - low, 1e-5))
+
+    return tensor
+
+
 class LinearLrDecay(object):
     def __init__(self, optimizer, start_lr, end_lr, decay_start_step, decay_end_step):
         assert start_lr > end_lr
