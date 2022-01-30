@@ -90,11 +90,13 @@ def gen_mixing_noise(batch_size, latent_dim, probability, device):
 def pixel_normalization(tensor: torch.Tensor) -> torch.Tensor:
     tensor = tensor.clone()  # avoid modifying tensor in-place
 
-    for t in tensor:  # loop over mini-batch dimension
+    for i in range(len(tensor)):  # loop over mini-batch dimension
+        t = tensor[i]
         low = float(t.min())
         high = float(t.max())
-        t.clamp_(min=low, max=high)
-        t.sub_(low).div_(max(high - low, 1e-5))
+        t = t.clamp(min=low, max=high)
+        t = t.sub(low).div(max(high - low, 1e-5))
+        tensor[i] = t
 
     return tensor
 
