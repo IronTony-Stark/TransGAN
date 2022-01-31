@@ -1,5 +1,4 @@
 import argparse
-import json
 
 import torch.optim as optim
 import torchvision
@@ -89,7 +88,7 @@ train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
 
 writer = SummaryWriter(log_dir=args.log_dir)
-writer.add_text('Config', json.dumps(vars(args), indent=4))
+writer.add_text('Config', pretty_json(vars(args)))
 
 checkpoint = Checkpoint("./checkpoints/", generator, discriminator, optimizer_gen, optimizer_dis)
 

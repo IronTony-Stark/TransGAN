@@ -1,3 +1,4 @@
+import json
 import os
 import random
 from typing import Tuple
@@ -276,3 +277,7 @@ class NoiseInjection(nn.Module):
 
         return image + self.weight * noise
 
+
+def pretty_json(json_dict):
+    json_hp = json.dumps(json_dict, indent=2)
+    return "".join("\t" + line for line in json_hp.splitlines(True))
