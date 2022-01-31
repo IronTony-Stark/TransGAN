@@ -1,4 +1,5 @@
 import os
+import time
 import random
 from typing import Tuple
 
@@ -287,8 +288,10 @@ class MySummaryWriter(SummaryWriter):
             raise TypeError('hparam_dict and metric_dict should be dictionary.')
         exp, ssi, sei = hparams(hparam_dict, metric_dict)
 
-        logdir = self._get_file_writer().get_logdir()
-
+        logdir = os.path.join(
+            self._get_file_writer().get_logdir(),
+            str(time.time())
+        )
         with SummaryWriter(log_dir=logdir) as w_hp:
             w_hp.file_writer.add_summary(exp)
             w_hp.file_writer.add_summary(ssi)
