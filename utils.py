@@ -1,5 +1,4 @@
 import os
-import time
 import random
 from typing import Tuple
 
@@ -7,8 +6,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
-from torch.utils.tensorboard import SummaryWriter
-from torch.utils.tensorboard.summary import hparams
 
 
 def up_sampling(x, scale_factor=2, mode="pixel_shuffle"):
@@ -279,17 +276,3 @@ class NoiseInjection(nn.Module):
 
         return image + self.weight * noise
 
-
-# https://github.com/pytorch/pytorch/issues/32651
-class MySummaryWriter(SummaryWriter):
-    def add_hparams(self, hparam_dict, metric_dict, **kwargs):
-        torch._C._log_api_usage_once("tensorboard.logging.add_hparams")
-        if type(hparam_dict) is not dict or type(metric_dict) is not dict:
-            raise TypeError('hparam_dict and metric_dict should be dictionary.')
-        exp, ssi, sei = hparams(hparam_dict, metric_dict)
-
-        self.file_writer.add_summary(exp)
-        self.file_writer.add_summary(ssi)
-        self.file_writer.add_summary(sei)
-        for k, v in metric_dict.items():
-            self.add_scalar(k, v)

@@ -4,6 +4,7 @@ import torch.optim as optim
 import torchvision
 import torchvision.utils as vutils
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
 from models import *
@@ -86,8 +87,8 @@ train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download
 ]))
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
 
-writer = MySummaryWriter(log_dir=args.log_dir)
-writer.add_hparams(vars(args), {})
+writer = SummaryWriter(log_dir=args.log_dir)
+writer.add_text('Config', str(vars(args)))
 
 checkpoint = Checkpoint("./checkpoints/", generator, discriminator, optimizer_gen, optimizer_dis)
 
