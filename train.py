@@ -10,7 +10,6 @@ from torchvision import transforms
 from models import *
 from utils import *
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--img_size", type=int, default=32, help="Size of image for discriminator input.")
 parser.add_argument("--epoch", type=int, default=200, help="Number of epoch.")
@@ -88,8 +87,7 @@ train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
 
 writer = SummaryWriter(log_dir=args.log_dir)
-writer.add_hparams({"a": 1}, {})
-writer.flush()
+writer.add_hparams(vars(args), {}, run_name='.')
 
 checkpoint = Checkpoint("./checkpoints/", generator, discriminator, optimizer_gen, optimizer_dis)
 
