@@ -106,7 +106,8 @@ for epoch in range(args.epoch):
 
         noise = gen_mixing_noise(batch_imgs.shape[0], args.latent_dim, args.mixing_prob, device)
         real_imgs = batch_imgs.to(device)
-        fake_imgs = normalization(pixel_normalization(generator(noise)))
+        # fake_imgs = normalization(pixel_normalization(generator(noise)))
+        fake_imgs = generator(noise)
 
         # Update Discriminator
         if iteration > args.gen_head_start:
