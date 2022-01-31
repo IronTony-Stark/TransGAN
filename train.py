@@ -88,6 +88,8 @@ train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
 
 writer = SummaryWriter(log_dir=args.log_dir)
+writer.add_hparams(vars(args), {})
+
 checkpoint = Checkpoint("./checkpoints/", generator, discriminator, optimizer_gen, optimizer_dis)
 
 iteration = 0
