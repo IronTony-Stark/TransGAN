@@ -249,7 +249,7 @@ class Generator(nn.Module):
 
             x, _ = style_modulation(x, styles[i])
             x = x + positional_embedding
-            x = transformer_encoder(x)
+            # x = transformer_encoder(x)
             skip = to_rgb(x, size, size, skip)
 
             i += 1
