@@ -6,7 +6,7 @@ import torch.nn as nn
 
 from configs import GenConfig, TransConfig
 from diff_aug import DiffAugment
-from tmp import MultiHeadAttention
+from tmp import *
 from utils import up_sampling_permute, Normalization, up_sampling, PixelNorm
 from equalized_lr import *
 
@@ -158,66 +158,6 @@ class MappingNetwork(nn.Module):
 #
 #         # add new style
 #         return input * new_style
-def norm(input, norm_type='layernorm'):
-    # [b, hw, c]
-    if norm_type == 'layernorm' or norm_type == 'l2norm':
-        normdim = -1
-    elif norm_type == 'insnorm':
-        normdim = 1
-    else:
-        raise NotImplementedError('have not implemented this type of normalization')
-
-    if norm_type != 'l2norm':
-        mean = torch.mean(input, dim=normdim, keepdim=True)
-        input = input - mean
-
-    demod = torch.rsqrt(torch.sum(input ** 2, dim=normdim, keepdim=True) + 1e-8)
-    return input * demod
-
-
-class StyleModulation(nn.Module):
-    def __init__(
-            self,
-            size: int, content_dim: int, style_num: int, style_dim: int, patch_size: int,
-            style_mod='prod',
-            norm_type='layernorm'
-    ):
-        super().__init__()
-
-        self.style_mod = style_mod
-        self.norm_type = norm_type
-        self.patch_size = patch_size
-        self.keys = nn.Parameter(nn.init.orthogonal_(torch.empty(1, style_num, content_dim)))
-        self.pos = nn.Parameter(torch.zeros(1, (size // patch_size) ** 2, content_dim))
-        self.attention = MultiHeadAttention(content_dim, content_dim, content_dim, style_dim)
-
-    def forward(self, input, style, is_new_style=False):
-        b, t, c = input.size()
-
-        # remove old style
-        input = norm(input)
-        input = input.view(b, t, -1, self.patch_size, self.patch_size)
-
-        # calculate new style
-        if not is_new_style:
-            # multi-head attention
-            query = torch.mean(input, dim=[3, 4])
-            keys = self.keys.repeat(input.size(0), 1, 1)
-            pos = self.pos.repeat(input.size(0), 1, 1)
-            new_style, _ = self.attention(q=query + pos, k=keys, v=style)
-        else:
-            new_style = style
-
-        # append new style
-        if self.style_mod == 'prod':
-            out = input * new_style.unsqueeze(-1).unsqueeze(-1)
-        elif self.style_mod == 'plus':
-            out = input + new_style.unsqueeze(-1).unsqueeze(-1)
-        else:
-            raise NotImplementedError('Have not implemented this type of style modulation')
-
-        out = out.view(b, t, c)
-        return out, (new_style.detach(),)
 
 
 class ToRGB(nn.Module):
@@ -236,8 +176,8 @@ class ToRGB(nn.Module):
         if skip is not None:
             out += up_sampling(skip, mode="bilinear")
 
-        # return self.act(out)
-        return out
+        return self.act(out)
+        # return out
 
 
 class Generator(nn.Module):
@@ -249,14 +189,10 @@ class Generator(nn.Module):
 
         if trans_configs is None:
             trans_configs = [
-                TransConfig(depth=5),
-                TransConfig(depth=4),
-                TransConfig(depth=3),
-                TransConfig(depth=3),
-                TransConfig(depth=3),
-                TransConfig(depth=2),
-                TransConfig(depth=2),
-                TransConfig(depth=2),
+                TransConfig(depth=1, heads=1),
+                TransConfig(depth=1, heads=1),
+                TransConfig(depth=1, heads=1),
+                TransConfig(depth=1, heads=1),
             ]
 
         self.configs = [
@@ -264,10 +200,6 @@ class Generator(nn.Module):
             GenConfig(16, 512, style_num, 1),
             GenConfig(32, 512, style_num, 1),
             GenConfig(64, 256, style_num, 1),
-            GenConfig(128, 256, style_num, 2),
-            GenConfig(256, 128, style_num, 2),
-            GenConfig(512, 64, style_num, 4),
-            GenConfig(1024, 32, style_num, 4),
         ]
 
         self.num_blocks = next(i for i, config in enumerate(self.configs) if config.size == img_size) + 1
