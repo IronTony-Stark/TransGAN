@@ -230,21 +230,8 @@ class Generator(nn.Module):
 
         # todo truncation
 
-        if len(input) == 1:
-            styles = input[0]
-            if styles.ndim == 3:
-                # (batch, style_num, style_dim) -> (layer, batch, style_num, style_dim)
-                styles = styles.unsqueeze(0).repeat(self.num_blocks, 1, 1, 1)
-        else:
-            kv_index = random.randint(1, self.style_num - 1), random.randint(1, self.style_num - 1)
-            styles1 = torch.cat([input[0][:, :kv_index[0], :], input[1][:, kv_index[0]:, :]], dim=1)
-            styles2 = torch.cat([input[1][:, :kv_index[1], :], input[0][:, kv_index[1]:, :]], dim=1)
-
-            inject_index = random.randint(1, self.num_blocks - 1)
-            styles1 = styles1.unsqueeze(0).repeat(inject_index, 1, 1, 1)
-            styles2 = styles2.unsqueeze(0).repeat(self.num_blocks - inject_index, 1, 1, 1)
-
-            styles = torch.cat([styles1, styles2], dim=0)
+        # todo noise mixing
+        styles = input[0].unsqueeze(0).repeat(self.num_blocks, 1, 1, 1)
 
         x = self.constant_input(styles.size(1))
 

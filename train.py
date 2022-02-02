@@ -12,7 +12,7 @@ from utils import *
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--comment", type=str, default="ToRGB with tanh", help="Comment to describe the run.")
+parser.add_argument("--comment", type=str, default="No noise mixing", help="Comment to describe the run.")
 parser.add_argument("--img_size", type=int, default=32, help="Size of image for discriminator input.")
 parser.add_argument("--epoch", type=int, default=200, help="Number of epoch.")
 parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
@@ -107,7 +107,8 @@ for epoch in range(args.epoch):
         loss_dis = None
         loss_gen = None
 
-        noise = gen_mixing_noise(batch_imgs.shape[0], args.latent_dim, args.mixing_prob, device)
+        # noise = gen_mixing_noise(batch_imgs.shape[0], args.latent_dim, args.mixing_prob, device)
+        noise = [gen_noise(batch_imgs.shape[0], args.latent_dim, 1, device)]
         real_imgs = batch_imgs.to(device)
         # fake_imgs = normalization(pixel_normalization(generator(noise)))
         fake_imgs = generator(noise)
