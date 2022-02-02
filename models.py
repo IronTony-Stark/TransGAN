@@ -8,7 +8,7 @@ from configs import GenConfig, TransConfig
 from diff_aug import DiffAugment
 from tmp import *
 from utils import up_sampling_permute, Normalization, up_sampling, PixelNorm
-from equalized_lr import *
+from equalized_lr import EqLinear, EqConv2d
 
 
 class ConstantInput(nn.Module):

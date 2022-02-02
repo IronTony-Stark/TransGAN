@@ -12,7 +12,7 @@ from utils import *
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--comment", type=str, default="No transformer", help="Comment to describe the run.")
+parser.add_argument("--comment", type=str, default="Copy pasted Equalized Learning Rate implementation from StyleGAN2", help="Comment to describe the run.")
 parser.add_argument("--img_size", type=int, default=32, help="Size of image for discriminator input.")
 parser.add_argument("--epoch", type=int, default=200, help="Number of epoch.")
 parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
