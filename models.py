@@ -248,8 +248,9 @@ class Generator(nn.Module):
                 x, _, _ = up_sampling_permute(x, current_size, current_size, mode="bilinear")
 
             x, _ = style_modulation(x, styles[i])
-            x = x + positional_embedding
+            # x = x + positional_embedding
             # x = transformer_encoder(x)
+            # todo add norm here?
             skip = to_rgb(x, size, size, skip)
 
             i += 1
