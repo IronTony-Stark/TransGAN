@@ -176,8 +176,8 @@ class ToRGB(nn.Module):
         if skip is not None:
             out += up_sampling(skip, mode="bilinear")
 
-        return self.act(out)
-        # return out
+        # return self.act(out)
+        return out
 
 
 class Generator(nn.Module):
@@ -217,10 +217,10 @@ class Generator(nn.Module):
             depth, heads, mlp_ratio, drop_rate, norm_type = trans_configs[i].get()
 
             self.style_modulations.append(StyleModulation(size, content_dim, style_num, style_dim, patch_size))
-            self.positional_embeddings.append(nn.Parameter(torch.zeros(1, size ** 2, content_dim)))
-            self.transformer_encoders.append(TransformerEncoder(
-                depth, content_dim, heads, mlp_ratio, drop_rate, norm_type
-            ))
+            # self.positional_embeddings.append(nn.Parameter(torch.zeros(1, size ** 2, content_dim)))
+            # self.transformer_encoders.append(TransformerEncoder(
+            #     depth, content_dim, heads, mlp_ratio, drop_rate, norm_type
+            # ))
             self.to_RGBs.append(ToRGB(content_dim))
 
     def forward(self, input):
