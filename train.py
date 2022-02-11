@@ -180,9 +180,9 @@ for epoch in range(args.epoch):
 
         iteration += 1
 
-    # Checkpoint
-    # noinspection PyUnboundLocalVariable
-    # checkpoint.save(f"{epoch}.pth", loss_gen.item(), epoch)
+        # Checkpoint
+        if iteration % 500 == 0 and iteration != 0:
+            checkpoint.save(f"{iteration}.pth", loss_gen.item(), epoch)
 
 # Checkpoint
 # checkpoint.save(f"final.pth", loss_gen.item(), args.epoch)
