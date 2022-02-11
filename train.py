@@ -12,7 +12,7 @@ from utils import *
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--comment", type=str, default="Removed TanH Activation", help="Comment to describe the run.")
+parser.add_argument("--comment", type=str, default="Fake Img Normalization", help="Comment to describe the run.")
 parser.add_argument("--img_size", type=int, default=32, help="Size of image for discriminator input.")
 parser.add_argument("--epoch", type=int, default=200, help="Number of epoch.")
 parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
@@ -111,8 +111,8 @@ for epoch in range(args.epoch):
         # noise = gen_mixing_noise(batch_imgs.shape[0], args.latent_dim, args.mixing_prob, device)
         noise = [gen_noise(batch_imgs.shape[0], args.latent_dim, 1, device)]
         # real_imgs = batch_imgs.to(device)
-        # fake_imgs = normalization(pixel_normalization(generator(noise)))
-        fake_imgs = generator(noise)
+        fake_imgs = normalization(pixel_normalization(generator(noise)))
+        # fake_imgs = generator(noise)
 
         # Update Discriminator
         # if iteration > args.gen_head_start:
