@@ -131,8 +131,9 @@ for epoch in range(args.epoch):
             # optimizer_dis.step()
 
             writer.add_scalar("Discriminator/Loss", loss_dis.item(), iteration)
-            writer.add_scalar("Discriminator/Real Score", -torch.mean(real_score).item(), iteration)
+            writer.add_scalar("Discriminator/Real Score", torch.mean(real_score).item(), iteration)
             writer.add_scalar("Discriminator/Fake Score", torch.mean(fake_score).item(), iteration)
+            writer.add_scalar("Discriminator/Gradient Penalty", gradient_penalty.item(), iteration)
 
         # Update Generator
         if iteration % args.n_critic == 0 and iteration > args.dis_head_start:
