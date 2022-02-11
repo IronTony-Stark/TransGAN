@@ -181,7 +181,7 @@ for epoch in range(args.epoch):
         iteration += 1
 
         # Checkpoint
-        if iteration % 500 == 0 and iteration != 0:
+        if iteration % 1000 == 0 and iteration != 0:
             checkpoint.save(f"{iteration}.pth", loss_gen.item(), epoch)
 
 # Checkpoint
