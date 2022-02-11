@@ -109,31 +109,31 @@ for epoch in range(args.epoch):
 
         # noise = gen_mixing_noise(batch_imgs.shape[0], args.latent_dim, args.mixing_prob, device)
         noise = [gen_noise(batch_imgs.shape[0], args.latent_dim, 1, device)]
-        real_imgs = batch_imgs.to(device)
+        # real_imgs = batch_imgs.to(device)
         # fake_imgs = normalization(pixel_normalization(generator(noise)))
         fake_imgs = generator(noise)
 
         # Update Discriminator
-        if iteration > args.gen_head_start:
-            requires_grad(generator, False)
-            requires_grad(discriminator, True)
-
-            optimizer_dis.zero_grad()
-
-            real_score = discriminator(real_imgs)
-            fake_score = discriminator(fake_imgs.detach())
-
-            gradient_penalty = compute_gradient_penalty(discriminator, real_imgs, fake_imgs.detach(), args.phi)
-            loss_dis = -torch.mean(real_score) + torch.mean(fake_score) + gradient_penalty * 10 / (args.phi ** 2)
-
-            loss_dis.backward()
-
-            # optimizer_dis.step()
-
-            writer.add_scalar("Discriminator/Loss", loss_dis.item(), iteration)
-            writer.add_scalar("Discriminator/Real Score", torch.mean(real_score).item(), iteration)
-            writer.add_scalar("Discriminator/Fake Score", torch.mean(fake_score).item(), iteration)
-            writer.add_scalar("Discriminator/Gradient Penalty", gradient_penalty.item(), iteration)
+        # if iteration > args.gen_head_start:
+        #     requires_grad(generator, False)
+        #     requires_grad(discriminator, True)
+        #
+        #     optimizer_dis.zero_grad()
+        #
+        #     real_score = discriminator(real_imgs)
+        #     fake_score = discriminator(fake_imgs.detach())
+        #
+        #     gradient_penalty = compute_gradient_penalty(discriminator, real_imgs, fake_imgs.detach(), args.phi)
+        #     loss_dis = -torch.mean(real_score) + torch.mean(fake_score) + gradient_penalty * 10 / (args.phi ** 2)
+        #
+        #     loss_dis.backward()
+        #
+        #     # optimizer_dis.step()
+        #
+        #     writer.add_scalar("Discriminator/Loss", loss_dis.item(), iteration)
+        #     writer.add_scalar("Discriminator/Real Score", torch.mean(real_score).item(), iteration)
+        #     writer.add_scalar("Discriminator/Fake Score", torch.mean(fake_score).item(), iteration)
+        #     writer.add_scalar("Discriminator/Gradient Penalty", gradient_penalty.item(), iteration)
 
         # Update Generator
         if iteration % args.n_critic == 0 and iteration > args.dis_head_start:
@@ -157,7 +157,7 @@ for epoch in range(args.epoch):
             print(
                 f"[Epoch {epoch}/{args.epoch}] "
                 f"[Batch {index % len(train_loader)}/{len(train_loader)}] "
-                f"[D loss: {round(loss_dis.item(), 4) if loss_dis else '?'}] "
+                # f"[D loss: {round(loss_dis.item(), 4) if loss_dis else '?'}] "
                 f"[G loss: {round(loss_gen.item(), 4) if loss_gen else '?'}] "
             )
         if iteration % 800 == 0:
