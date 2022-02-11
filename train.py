@@ -92,6 +92,7 @@ writer = SummaryWriter(log_dir=args.log_dir)
 writer.add_text('Config', pretty_json(vars(args)))
 
 checkpoint = Checkpoint("./checkpoints/", generator, discriminator, optimizer_gen, optimizer_dis)
+# checkpoint.load("3000.pth")
 
 iteration = 0
 for epoch in range(args.epoch):

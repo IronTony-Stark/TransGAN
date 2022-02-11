@@ -181,12 +181,13 @@ class NormalNoiseDecay:
 
 
 class Checkpoint:
-    def __init__(self, checkpoint_folder: str, generator, discriminator, optimizer_gen, optimizer_dis):
+    def __init__(self, checkpoint_folder: str, generator, discriminator, optimizer_gen, optimizer_dis, device="cpu"):
         self.checkpoint_dir = checkpoint_folder
         self.generator = generator
         self.discriminator = discriminator
         self.optimizer_gen = optimizer_gen
         self.optimizer_dis = optimizer_dis
+        self.device = device
 
     def save(self, filename: str, score: float, epoch: int):
         torch.save({
@@ -199,7 +200,7 @@ class Checkpoint:
         }, os.path.join(self.checkpoint_dir, filename))
 
     def load(self, filename: str):
-        checkpoint = torch.load(os.path.join(self.checkpoint_dir, filename))
+        checkpoint = torch.load(os.path.join(self.checkpoint_dir, filename), map_location=torch.device(self.device))
         self.generator.load_state_dict(checkpoint["generator_state_dict"])
         self.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
         self.optimizer_gen.load_state_dict(checkpoint["optimizer_generator_state_dict"])
