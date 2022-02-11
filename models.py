@@ -209,8 +209,8 @@ class Generator(nn.Module):
         self.constant_input = ConstantInput((self.configs[0].size ** 2, self.configs[0].content_dim))
 
         self.style_modulations = nn.ModuleList()
-        self.positional_embeddings = nn.ParameterList()
-        self.transformer_encoders = nn.ModuleList()
+        # self.positional_embeddings = nn.ParameterList()
+        # self.transformer_encoders = nn.ModuleList()
         self.to_RGBs = nn.ModuleList()
         for i in range(self.num_blocks):
             size, content_dim, style_num, patch_size = self.configs[i].get()
@@ -237,9 +237,12 @@ class Generator(nn.Module):
 
         i = 0
         skip = None
-        for style_modulation, positional_embedding, transformer_encoder, to_rgb in zip(
-                self.style_modulations, self.positional_embeddings,
-                self.transformer_encoders, self.to_RGBs
+        # for style_modulation, positional_embedding, transformer_encoder, to_rgb in zip(
+        #         self.style_modulations, self.positional_embeddings,
+        #         self.transformer_encoders, self.to_RGBs
+        # ):
+        for style_modulation, to_rgb in zip(
+                self.style_modulations, self.to_RGBs
         ):
             size = self.configs[i].size
 
